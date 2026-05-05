@@ -1,3 +1,10 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Anthropic / Claude scratch
 /.omx/
 
 # Node.js
@@ -43,9 +50,12 @@ pip-wheel-metadata/
 # Firebase / Cloud Functions
 .firebase/
 firebase-debug.log*
+firestore-debug.log
 ui-debug.log*
 .runtimeconfig.json
-functions/node_modules/
-functions/.venv/
-functions/lib/
-functions/dist/
+emulator-data/
+backend/lib/
+
+# Per-subproject ignores live in:
+#   frontend/.gitignore (Next.js)
+#   backend/.gitignore  (Cloud Functions)
