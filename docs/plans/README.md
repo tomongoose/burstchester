@@ -118,7 +118,9 @@ burstchester/
 
 ## Phase B — MVP Core (각 항목 = 하나의 `/tdd-plan`)
 
-### B1. `auth-and-profile`
+### B1. `auth-and-profile` ✅ 완료
+> 상세 plan: [`auth-and-profile-plan.md`](./auth-and-profile-plan.md), feature 문서: [`../features/auth/auth-and-profile.md`](../features/auth/auth-and-profile.md)
+
 사용자 인증 + 프로필 레코드.
 
 **스콥**:
