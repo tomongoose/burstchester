@@ -6,7 +6,12 @@ service cloud.firestore {
     // Users: 본인만 자기 프로필 쓰기. 누구나 공개 프로필 읽기.
     match /users/{uid} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.uploadCount == 0
+                    && request.resource.data.downloadCount == 0
+                    && request.resource.data.reputation == 0;
       allow update: if request.auth.uid == uid
                     && !( "uploadCount" in request.resource.data.diff(resource.data).affectedKeys() )
                     && !( "downloadCount" in request.resource.data.diff(resource.data).affectedKeys() )

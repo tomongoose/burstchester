@@ -83,20 +83,44 @@ burstchester/
 - shadcn/ui 셋업 (`npx shadcn init` — 인터랙티브, B1 직전에)
 - emulator 기반 통합 테스트 시드 fixture
 
-### A2. Firebase Emulator + 테스트 인프라
-- Firebase Emulator Suite (Auth, Firestore, Storage, Functions)
-- `vitest` (or `jest`) + `@firebase/rules-unit-testing`
-- Cloud Functions: `firebase-functions-test` setup
-- E2E: Playwright 셋업 (선택)
-- CI: GitHub Actions에서 emulator 기동 후 테스트 실행
+### A2. Firebase Emulator + 테스트 인프라 ✅ 완료
 
-→ A1, A2 완료 후 B1부터 `/tdd-plan` 적용.
+**Frontend (`frontend/`)**
+- [x] Vitest 4 + jsdom + @testing-library/react + @testing-library/jest-dom + @testing-library/user-event
+- [x] `frontend/vitest.config.ts` (jsdom env, `@/*` alias, `tests/setup.ts` 자동 cleanup)
+- [x] `frontend/tests/smoke.test.ts` 통과
+- [x] scripts: `test`, `test:watch`, `test:coverage`, `typecheck`
+
+**Backend (`backend/`)**
+- [x] Vitest 4 (Node env)
+- [x] `@firebase/rules-unit-testing`로 Firestore Rules 테스트
+- [x] `firebase-functions-test`로 Cloud Function 단위 테스트 준비
+- [x] `firebase-tools`를 devDep으로 (emulator 실행용)
+- [x] `backend/vitest.config.ts` — 단위 테스트 (오프라인)
+- [x] `backend/vitest.rules.config.ts` — rules 테스트 (emulator 필요)
+- [x] `backend/tests/rules/firestore.rules.test.ts` — 4개 케이스 통과 (인증 거부 / 본인 작성 허용 / 카운터 직접 조작 거부 / 공개 read)
+- [x] scripts: `test`, `test:watch`, `test:rules` (`firebase emulators:exec` 래핑), `emulators`
+
+**Firebase 설정**
+- [x] `firebase.json`에서 hosting 블록 제거 — 팀원이 자체 환경에서 deploy 설정 (Next.js 16 프레임워크 모드는 `webframeworks` experiment 필요해서 비워둠)
+
+**CI (`.github/workflows/test.yml`)**
+- [x] 3개 job 병렬: `frontend` (vitest + typecheck + build), `backend` (vitest + typecheck + build), `rules` (Java setup + emulator + rules tests)
+- [x] `npm ci` 캐싱, Node 20
+
+**다음 단계**
+- shadcn/ui는 B1 직전에 (`npx shadcn init` — 인터랙티브)
+- Playwright E2E는 B 진행하면서 필요해질 때만 도입
+
+→ A1, A2 완료. **B1부터 `/tdd-plan` 적용 가능.**
 
 ---
 
 ## Phase B — MVP Core (각 항목 = 하나의 `/tdd-plan`)
 
-### B1. `auth-and-profile`
+### B1. `auth-and-profile` ✅ 완료
+> 상세 plan: [`auth-and-profile-plan.md`](./auth-and-profile-plan.md), feature 문서: [`../features/auth/auth-and-profile.md`](../features/auth/auth-and-profile.md)
+
 사용자 인증 + 프로필 레코드.
 
 **스콥**:
