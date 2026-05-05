@@ -1,6 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+process.env.GCLOUD_PROJECT = "demo-burstchester";
+process.env.FIREBASE_CONFIG = JSON.stringify({
+  projectId: "demo-burstchester",
+  storageBucket: "demo-burstchester.appspot.com",
+});
+
 const {healthCheckHandler} = require("../lib/index.js");
 
 test("healthCheckHandler returns ok payload", async () => {

@@ -86,6 +86,7 @@
   sourceModel: string,         // "qwen3:14b" | "llama3.1:8b" | "human" 등 — 7-1/7-2 화이트리스트
   sourceModelLicense: "apache-2.0" | "mit" | "llama-community" | "gemma-tou" | "human" | "other",
   sourceConfirmed: boolean,    // 업로드 시 약관 동의
+  outputModelId: string | null, // 이 데이터셋 출력으로 학습된 models/{id} 참조. 없으면 null
 
   // 장기 비전(05-vision-provenance) 후크 — MVP에선 기록만, 기능 X
   parentDatasets: string[],         // 분할/합치기 시 부모 ID. MVP에선 빈 배열
