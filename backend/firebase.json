@@ -8,7 +8,7 @@
   },
   "functions": [
     {
-      "source": "backend",
+      "source": ".",
       "codebase": "default",
       "ignore": [
         "node_modules",
@@ -23,7 +23,7 @@
     }
   ],
   "hosting": {
-    "source": "frontend",
+    "source": "../frontend",
     "ignore": [
       "firebase.json",
       "**/.*",

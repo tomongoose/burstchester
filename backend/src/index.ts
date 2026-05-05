@@ -1,8 +1,19 @@
 import { initializeApp } from "firebase-admin/app";
+import type { Request, Response } from "express";
+import { logger } from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
 
 initializeApp();
 
-// Function entry points are wired up in feature-specific plans (B1+).
-// Keep this file as the deployment manifest only.
+export async function healthCheckHandler(
+  _request: Request,
+  response: Response,
+): Promise<void> {
+  logger.info("healthCheck invoked");
+  response.status(200).json({
+    ok: true,
+    service: "burstchester-functions",
+  });
+}
 
-export {};
+export const healthCheck = onRequest({ region: "us-central1" }, healthCheckHandler);
