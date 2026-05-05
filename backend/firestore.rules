@@ -2,25 +2,69 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthed() {
-      return request.auth != null;
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.uploadCount == 0
+                    && request.resource.data.downloadCount == 0
+                    && request.resource.data.reputation == 0;
+      allow update: if request.auth.uid == uid
+                    && !( "uploadCount" in request.resource.data.diff(resource.data).affectedKeys() )
+                    && !( "downloadCount" in request.resource.data.diff(resource.data).affectedKeys() )
+                    && !( "reputation" in request.resource.data.diff(resource.data).affectedKeys() );
+      allow delete: if false;
     }
 
-    function isOwner(uid) {
-      return isAuthed() && request.auth.uid == uid;
+    match /datasets/{id} {
+      allow read: if resource.data.status == "active"
+                  || (request.auth != null && request.auth.uid == resource.data.ownerUid);
+
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() <= 80
+                    && request.resource.data.tags is list
+                    && request.resource.data.tags.size() <= 10
+                    && request.resource.data.likeCount == 0
+                    && request.resource.data.downloadCount == 0
+                    && request.resource.data.reportCount == 0;
+
+      allow update: if request.auth.uid == resource.data.ownerUid
+                    && !( "likeCount" in request.resource.data.diff(resource.data).affectedKeys() )
+                    && !( "downloadCount" in request.resource.data.diff(resource.data).affectedKeys() )
+                    && !( "reportCount" in request.resource.data.diff(resource.data).affectedKeys() )
+                    && !( "status" in request.resource.data.diff(resource.data).affectedKeys() );
+
+      allow delete: if request.auth.uid == resource.data.ownerUid;
+
+      match /likes/{uid} {
+        allow read: if true;
+        allow create, delete: if request.auth != null && request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /reports/{uid} {
+        allow read: if request.auth.uid == uid;
+        allow create: if request.auth != null && request.auth.uid == uid;
+        allow update, delete: if false;
+      }
     }
 
-    match /profiles/{uid} {
-      allow read, write: if isOwner(uid);
+    match /models/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.huggingFaceUrl is string
+                    && request.resource.data.huggingFaceUrl.size() > 0;
+      allow update, delete: if request.auth != null
+                            && request.auth.uid == resource.data.ownerUid;
     }
 
-    match /memories/{memoryId} {
-      allow read, create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isOwner(resource.data.userId);
-    }
-
-    match /preferences/{uid} {
-      allow read, write: if isOwner(uid);
+    match /tags/{name} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
