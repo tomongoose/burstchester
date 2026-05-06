@@ -4,6 +4,18 @@ export function buildDatasetDownloadUrl(endpointUrl, datasetId) {
   return url.toString();
 }
 
+export function summarizeDatasetPreflight(results) {
+  const okDatasetIds = results.filter((result) => result.ok).map((result) => result.datasetId);
+  const failedDatasetIds = results.filter((result) => !result.ok).map((result) => result.datasetId);
+
+  return {
+    okDatasetIds,
+    failedDatasetIds,
+    okCount: okDatasetIds.length,
+    failedCount: failedDatasetIds.length,
+  };
+}
+
 export function buildDebugUploadRequest({
   endpointUrl,
   idToken,
@@ -76,4 +88,39 @@ export async function uploadDebugDataset({
   }
 
   return payload.dataset;
+}
+
+export async function preflightDatasetDownloads({
+  endpointUrl,
+  datasetIds,
+  fetchImpl = fetch,
+}) {
+  const results = [];
+
+  for (const datasetId of datasetIds) {
+    try {
+      const payload = await fetchDatasetPackageMetadata({
+        endpointUrl,
+        datasetId,
+        fetchImpl,
+      });
+      results.push({
+        datasetId,
+        ok: true,
+        zipPath: payload.zipPath,
+        cached: payload.cached,
+      });
+    } catch (error) {
+      results.push({
+        datasetId,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    results,
+    summary: summarizeDatasetPreflight(results),
+  };
 }

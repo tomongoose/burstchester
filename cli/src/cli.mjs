@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs, requiredFlag } from "./lib/args.mjs";
-import { fetchDatasetPackageMetadata, uploadDebugDataset } from "./lib/backend.mjs";
+import {
+  fetchDatasetPackageMetadata,
+  preflightDatasetDownloads,
+  uploadDebugDataset,
+} from "./lib/backend.mjs";
 import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
-import { downloadToFile, ensureDir } from "./lib/download.mjs";
+import { parseDatasetIdFile, serializeDatasetIds } from "./lib/dataset-list.mjs";
+import { downloadToFile, ensureDir, mergeTextFiles } from "./lib/download.mjs";
 import {
   isSessionExpired,
   refreshFirebaseSession,
@@ -16,7 +21,15 @@ import {
 } from "./lib/firebase-auth.mjs";
 import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
 import { upsertCliProfile } from "./lib/profile.mjs";
-import { clearSession, loadSession, saveSession } from "./lib/session.mjs";
+import {
+  addDatasetId,
+  clearDatasetIds,
+  clearSession,
+  loadSession,
+  normalizeDatasetId,
+  removeDatasetId,
+  saveSession,
+} from "./lib/session.mjs";
 import { buildTrainingManifest, runTraining } from "./lib/train.mjs";
 import { extractStoredZip } from "./lib/zip.mjs";
 
@@ -35,6 +48,9 @@ async function main(argv) {
     case "download-model":
       await handleDownloadModel(flags);
       return;
+    case "dataset-list":
+      await handleDatasetList(flags, positionals);
+      return;
     case "upload-test-dataset":
       await handleUploadTestDataset(flags);
       return;
@@ -43,6 +59,56 @@ async function main(argv) {
       return;
     default:
       printUsage();
+  }
+}
+
+async function handleDatasetList(flags, positionals) {
+  const subcommand = positionals[0] || "show";
+  const session = (await loadSession()) ?? {};
+  const currentIds = Array.isArray(session.datasetIds) ? session.datasetIds : [];
+
+  switch (subcommand) {
+    case "add": {
+      const datasetId = requiredFlag(flags, "dataset-id");
+      session.datasetIds = addDatasetId(currentIds, datasetId);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "remove": {
+      const datasetId = requiredFlag(flags, "dataset-id");
+      session.datasetIds = removeDatasetId(currentIds, datasetId);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "clear": {
+      session.datasetIds = clearDatasetIds(currentIds);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: [] }, null, 2)}\n`);
+      return;
+    }
+    case "import": {
+      const filePath = requiredFlag(flags, "file");
+      const text = await readFile(resolve(filePath), "utf8");
+      session.datasetIds = parseDatasetIdFile(text);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, imported: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "export": {
+      const filePath = requiredFlag(flags, "file");
+      const text = serializeDatasetIds(currentIds);
+      await writeFile(resolve(filePath), text, "utf8");
+      process.stdout.write(`${JSON.stringify({ ok: true, exported: true, file: resolve(filePath), datasetIds: currentIds }, null, 2)}\n`);
+      return;
+    }
+    case "show": {
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: currentIds }, null, 2)}\n`);
+      return;
+    }
+    default:
+      throw new Error(`Unknown dataset-list subcommand: ${subcommand}`);
   }
 }
 
@@ -312,32 +378,58 @@ async function handleTrain(flags) {
     process.env.BURSTCHESTER_BACKEND_URL,
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
-  const datasetId = requiredFlag(flags, "dataset-id");
+  const session = await loadSession();
+  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetId = datasetIds[0];
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
   const trainingMethod = typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora";
 
   await ensureDir(workspace);
-
-  const metadata = await fetchDatasetPackageMetadata({
+  const preflight = await preflightDatasetDownloads({
     endpointUrl,
-    datasetId,
+    datasetIds,
   });
 
-  const zipPath = join(workspace, `${datasetId}.zip`);
-  await downloadToFile({
-    url: metadata.url,
-    destination: zipPath,
-  });
+  if (flags["preflight-only"] === true) {
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight }, null, 2)}\n`);
+    return;
+  }
 
-  const datasetDir = join(workspace, "dataset");
-  const archive = await readFile(zipPath);
-  await extractStoredZip(archive, datasetDir);
+  if (preflight.summary.failedCount > 0) {
+    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
+  }
+
+  const mergedParts = [];
+
+  for (const currentDatasetId of datasetIds) {
+    const metadata = await fetchDatasetPackageMetadata({
+      endpointUrl,
+      datasetId: currentDatasetId,
+    });
+
+    const zipPath = join(workspace, `${currentDatasetId}.zip`);
+    await downloadToFile({
+      url: metadata.url,
+      destination: zipPath,
+    });
+
+    const datasetDir = join(workspace, "datasets", currentDatasetId);
+    const archive = await readFile(zipPath);
+    await extractStoredZip(archive, datasetDir);
+    mergedParts.push(join(datasetDir, "dataset.jsonl"));
+  }
+
+  const mergedDatasetPath = await mergeTextFiles(
+    mergedParts,
+    join(workspace, "merged-dataset.jsonl"),
+  );
 
   const manifest = buildTrainingManifest({
     datasetId,
-    datasetPath: join(datasetDir, "dataset.jsonl"),
+    datasetIds,
+    datasetPath: mergedDatasetPath,
     modelRepo,
     outputDir: join(workspace, "output"),
     trainingMethod,
@@ -374,11 +466,17 @@ function printUsage() {
       "  auth huggingface [--token <hf_token>] [--clear]",
       "  auth profile --display-name <name> [--api-key <firebase-key>] [--profile-url <url>]",
       "  auth logout",
+      "  dataset-list add --dataset-id <id>",
+      "  dataset-list remove --dataset-id <id>",
+      "  dataset-list show",
+      "  dataset-list clear",
+      "  dataset-list import --file <path>",
+      "  dataset-list export --file <path>",
       "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
       "  download-model --url <hf-url> [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
       "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
-      "  train [--backend-url <url>] --dataset-id <id> --model-repo <org/model> [--workspace <dir>]",
+      "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );
@@ -443,4 +541,22 @@ async function promptForToken(prompt) {
   } finally {
     rl.close();
   }
+}
+
+function resolveTrainingDatasetIds(flags, session) {
+  const explicit = normalizeDatasetId(typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : "");
+  if (explicit) {
+    return [explicit];
+  }
+
+  const stored = Array.isArray(session?.datasetIds)
+    ? session.datasetIds
+      .map((value) => normalizeDatasetId(value))
+      .filter(Boolean)
+    : [];
+  if (stored.length > 0) {
+    return stored;
+  }
+
+  throw new Error("No dataset ids available. Pass --dataset-id or add ids with `dataset-list add`.");
 }

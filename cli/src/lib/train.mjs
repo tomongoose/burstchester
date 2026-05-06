@@ -9,6 +9,7 @@ const DEFAULT_TRAINING_METHOD = "qlora";
 export function buildTrainingManifest(input) {
   return {
     datasetId: input.datasetId,
+    datasetIds: Array.isArray(input.datasetIds) ? [...input.datasetIds] : [input.datasetId],
     datasetPath: input.datasetPath,
     modelRepo: input.modelRepo,
     outputDir: input.outputDir,

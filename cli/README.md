@@ -60,6 +60,47 @@ node src/cli.mjs auth huggingface --clear
 node src/cli.mjs auth logout
 ```
 
+### 데이터셋 리스트 관리
+
+파인튜닝에 쓸 dataset ID 목록을 로컬 세션에 저장할 수 있다.
+
+추가:
+
+```bash
+node src/cli.mjs dataset-list add --dataset-id legal-ko
+node src/cli.mjs dataset-list add --dataset-id finance-ko
+```
+
+조회:
+
+```bash
+node src/cli.mjs dataset-list show
+```
+
+파일에서 import:
+
+```bash
+node src/cli.mjs dataset-list import --file ./dataset-ids.txt
+```
+
+파일로 export:
+
+```bash
+node src/cli.mjs dataset-list export --file ./dataset-ids.txt
+```
+
+삭제:
+
+```bash
+node src/cli.mjs dataset-list remove --dataset-id finance-ko
+```
+
+초기화:
+
+```bash
+node src/cli.mjs dataset-list clear
+```
+
 ### 데이터셋 다운로드
 
 ```bash
@@ -119,9 +160,23 @@ node src/cli.mjs upload-test-dataset \
 
 ```bash
 node src/cli.mjs train \
-  --dataset-id <dataset-id> \
   --model-repo Qwen/Qwen3-0.6B
 ```
+
+`train`은 우선순위를 다음 순서로 본다.
+
+1. `--dataset-id`가 있으면 그 단일 dataset
+2. 없으면 로컬에 저장된 dataset list 전체
+
+저장된 dataset list를 쓰는 경우, 각 dataset ZIP을 백엔드에서 받아 `dataset.jsonl`을 추출하고, 이를 하나의 `merged-dataset.jsonl`로 합쳐서 Hugging Face 모델 학습에 넘긴다.
+
+학습 전에 dataset list 전체를 검증만 하고 싶다면:
+
+```bash
+node src/cli.mjs train --model-repo Qwen/Qwen3-0.6B --preflight-only
+```
+
+이 모드는 각 dataset ID에 대해 백엔드 `prepareDatasetDownload` 호출이 성공하는지 먼저 확인하고, 성공/실패 목록을 JSON으로 출력한다.
 
 ## 학습 전제조건
 

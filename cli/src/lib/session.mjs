@@ -30,3 +30,34 @@ export async function saveSession(session, customPath) {
 export async function clearSession(customPath) {
   await rm(getSessionPath(customPath), { force: true });
 }
+
+export function normalizeDatasetId(datasetId) {
+  if (typeof datasetId !== "string") {
+    return null;
+  }
+
+  const trimmed = datasetId.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function addDatasetId(datasetIds = [], datasetId) {
+  const normalized = normalizeDatasetId(datasetId);
+  if (!normalized) {
+    return [...datasetIds];
+  }
+
+  return datasetIds.includes(normalized) ? [...datasetIds] : [...datasetIds, normalized];
+}
+
+export function removeDatasetId(datasetIds = [], datasetId) {
+  const normalized = normalizeDatasetId(datasetId);
+  if (!normalized) {
+    return [...datasetIds];
+  }
+
+  return datasetIds.filter((value) => value !== normalized);
+}
+
+export function clearDatasetIds(_datasetIds = []) {
+  return [];
+}
