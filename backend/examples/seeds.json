@@ -1,0 +1,17 @@
+{
+  "entries": [
+    {
+      "huggingFaceId": "burstchester/legal-ko-mini",
+      "revision": "main",
+      "filePath": "data/train.jsonl",
+      "title": "Korean Legal Q&A — Mini",
+      "description": "Sample seed for the Burstchester hub. Replace with a real Hugging Face dataset reference before running.",
+      "tags": ["legal", "korean"],
+      "language": "ko",
+      "taskType": "instruction",
+      "baseModelHint": "qwen3:14b",
+      "license": "CC-BY-4.0",
+      "sourceModel": "qwen3:14b"
+    }
+  ]
+}

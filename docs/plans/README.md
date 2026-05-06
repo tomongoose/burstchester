@@ -252,7 +252,9 @@ burstchester/
 
 ## Phase C — MVP Polish
 
-### C1. `seed-import-tool`
+### C1. `seed-import-tool` ✅ 완료
+> 상세 plan: [`seed-import-tool-plan.md`](./seed-import-tool-plan.md), feature 문서: [`../features/admin/seed-import.md`](../features/admin/seed-import.md)
+
 운영자가 큐레이션한 시드 데이터셋 30개를 일괄 import하는 admin CLI/script.
 
 **스콥**:
