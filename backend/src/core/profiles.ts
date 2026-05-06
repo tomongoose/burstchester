@@ -1,32 +1,35 @@
 import { Timestamp } from "firebase-admin/firestore";
 
 export interface AuthProfileInput {
-  uid: string;
-  displayName?: string | null;
-  email?: string | null;
-  photoURL?: string | null;
+  readonly uid: string;
+  readonly displayName?: string | null;
+  readonly email?: string | null;
+  readonly photoURL?: string | null;
 }
 
 export interface UserProfileRecord {
-  uid: string;
-  displayName: string;
-  email: string;
-  photoURL: string;
-  createdAt: Timestamp;
-  uploadCount: number;
-  downloadCount: number;
-  reputation: number;
+  readonly uid: string;
+  readonly displayName: string;
+  readonly email: string;
+  readonly photoURL: string;
+  readonly createdAt: Timestamp;
+  readonly uploadCount: number;
+  readonly downloadCount: number;
+  readonly reputation: number;
 }
 
-export function buildUserProfile(user: AuthProfileInput): UserProfileRecord {
-  return {
+export function buildUserProfile(
+  user: AuthProfileInput,
+  now: Timestamp,
+): UserProfileRecord {
+  return Object.freeze({
     uid: user.uid,
     displayName: user.displayName ?? "Anonymous",
     email: user.email ?? "",
     photoURL: user.photoURL ?? "",
-    createdAt: Timestamp.now(),
+    createdAt: now,
     uploadCount: 0,
     downloadCount: 0,
     reputation: 0,
-  };
+  });
 }

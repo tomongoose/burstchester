@@ -138,7 +138,9 @@ burstchester/
 
 ---
 
-### B2. `dataset-upload-validate`
+### B2. `dataset-upload-validate` ✅ 완료 (`backend-hardening` plan으로 보강)
+> 팀원 commit 5c6a0d3에서 기능 구현됨. `backend-hardening` plan에서 ODP 보강 + 테스트 갭 메움. feature 문서: [`../features/dataset/upload-validate.md`](../features/dataset/upload-validate.md)
+
 업로드된 JSONL 파일의 검증 파이프라인. **저장은 다음 plan**.
 
 **스콥**:

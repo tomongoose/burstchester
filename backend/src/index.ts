@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
+
 import { initializeApp, getApps } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import type { Request, Response } from "express";
 import { logger } from "firebase-functions";
@@ -35,7 +37,7 @@ export async function healthCheckHandler(
 export const healthCheck = onRequest({ region: "us-central1" }, healthCheckHandler);
 
 export const onUserCreate = functionsV1.auth.user().onCreate(async (user) => {
-  const profile = buildUserProfile(user);
+  const profile = buildUserProfile(user, Timestamp.now());
   await db.doc(`users/${user.uid}`).set(profile, { merge: true });
 });
 
@@ -77,6 +79,7 @@ export const onDatasetUpload = onObjectFinalized({ region: "us-central1" }, asyn
         );
       },
     },
+    Timestamp.now(),
   );
 });
 
@@ -160,6 +163,8 @@ export const prepareDownload = onCall({ region: "us-central1" }, async (request)
   }
 
   try {
+    const now = new Date();
+    const signedUrlExpiresAt = now.getTime() + 60 * 60 * 1000;
     return await prepareDownloadCore(
       {
         datasetId,
@@ -183,7 +188,7 @@ export const prepareDownload = onCall({ region: "us-central1" }, async (request)
         getSignedUrl: async (path) => {
           const [url] = await storage.bucket().file(path).getSignedUrl({
             action: "read",
-            expires: Date.now() + 60 * 60 * 1000,
+            expires: signedUrlExpiresAt,
           });
           return url;
         },
@@ -217,6 +222,7 @@ export const prepareDownload = onCall({ region: "us-central1" }, async (request)
           });
         },
       },
+      now,
     );
   } catch (error) {
     logger.error("prepareDownload failed", error);
@@ -230,16 +236,20 @@ export const registerModel = onCall({ region: "us-central1" }, async (request) =
   }
 
   try {
-    const record = buildModelRecord({
-      ownerUid: request.auth.uid,
-      huggingFaceUrl: String(request.data?.huggingFaceUrl ?? ""),
-      baseModel: typeof request.data?.baseModel === "string" ? request.data.baseModel : undefined,
-      trainingDatasets: Array.isArray(request.data?.trainingDatasets)
-        ? request.data.trainingDatasets.map((value: unknown) => String(value))
-        : undefined,
-      trainingMethod: typeof request.data?.trainingMethod === "string" ? request.data.trainingMethod : undefined,
-      ollamaPullUrl: typeof request.data?.ollamaPullUrl === "string" ? request.data.ollamaPullUrl : null,
-    });
+    const record = buildModelRecord(
+      {
+        ownerUid: request.auth.uid,
+        huggingFaceUrl: String(request.data?.huggingFaceUrl ?? ""),
+        baseModel: typeof request.data?.baseModel === "string" ? request.data.baseModel : undefined,
+        trainingDatasets: Array.isArray(request.data?.trainingDatasets)
+          ? request.data.trainingDatasets.map((value: unknown) => String(value))
+          : undefined,
+        trainingMethod: typeof request.data?.trainingMethod === "string" ? request.data.trainingMethod : undefined,
+        ollamaPullUrl: typeof request.data?.ollamaPullUrl === "string" ? request.data.ollamaPullUrl : null,
+      },
+      () => `model-${randomUUID()}`,
+      Timestamp.now(),
+    );
 
     await db.doc(`models/${record.id}`).set(record);
 

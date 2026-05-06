@@ -1,10 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { Timestamp } = require("firebase-admin/firestore");
 
 const {
   buildModelRecord,
   validateHuggingFaceDownloadUrl,
 } = require("../lib/core/model-registry.js");
+
+const TEST_NOW = Timestamp.fromDate(new Date("2026-05-05T00:00:00Z"));
 
 test("validateHuggingFaceDownloadUrl accepts downloadable hugging face URLs", () => {
   const result = validateHuggingFaceDownloadUrl(
@@ -32,6 +35,7 @@ test("buildModelRecord creates internal id and attaches owner id", () => {
       ollamaPullUrl: "burstchester/legal-ko-qlora:latest",
     },
     () => "model-123",
+    TEST_NOW,
   );
 
   assert.equal(record.id, "model-123");

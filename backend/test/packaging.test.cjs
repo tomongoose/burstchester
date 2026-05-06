@@ -59,11 +59,14 @@ test("buildReadmeTemplate mentions Ollama workflow and dataset metadata", () => 
 });
 
 test("createDatasetArchive packs all required files into a zip buffer", () => {
-  const archive = createDatasetArchive({
-    dataset,
-    normalizedJsonl:
-      '{"messages":[{"role":"user","content":"질문"},{"role":"assistant","content":"답변"}]}\n',
-  });
+  const archive = createDatasetArchive(
+    {
+      dataset,
+      normalizedJsonl:
+        '{"messages":[{"role":"user","content":"질문"},{"role":"assistant","content":"답변"}]}\n',
+    },
+    new Date("2026-05-05T00:00:00.000Z"),
+  );
 
   const text = archive.toString("utf8");
   assert.ok(archive.length > 100);
@@ -92,6 +95,7 @@ test("prepareDownloadCore reuses cache miss output and returns signed url", asyn
       setZipPath: async () => {},
       incrementDownloadStats: async () => {},
     },
+    new Date("2026-05-05T00:00:00.000Z"),
   );
 
   assert.equal(result.cached, false);

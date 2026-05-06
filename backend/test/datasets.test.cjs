@@ -1,10 +1,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { Timestamp } = require("firebase-admin/firestore");
 
 const {
   processDatasetUpload,
   validateDatasetUpload,
 } = require("../lib/core/datasets.js");
+
+const TEST_NOW = Timestamp.fromDate(new Date("2026-05-05T00:00:00Z"));
 
 test("validateDatasetUpload normalizes ShareGPT into OpenAI messages", () => {
   const result = validateDatasetUpload({
@@ -95,6 +98,7 @@ test("processDatasetUpload builds dataset metadata and normalized storage path",
       },
       incrementUserUploads: async () => {},
     },
+    TEST_NOW,
   );
 
   assert.equal(dataset.id, "dataset-1");
@@ -138,6 +142,7 @@ test("processDatasetUpload keeps outputModelId nullable when omitted", async () 
       upsertDataset: async () => {},
       incrementUserUploads: async () => {},
     },
+    TEST_NOW,
   );
 
   assert.equal(dataset.outputModelId, null);

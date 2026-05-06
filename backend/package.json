@@ -9,6 +9,7 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "test:unit": "npm run build && node --test test/*.test.cjs",
     "test:vitest": "vitest run",
     "test": "npm run test:unit && npm run test:vitest",
