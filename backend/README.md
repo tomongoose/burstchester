@@ -14,6 +14,8 @@
 | `onLikeWrite` | Firestore `datasets/{id}/likes/{uid}` 문서 쓰기 | 좋아요 수와 작성자 평판 갱신 |
 | `onReportWrite` | Firestore `datasets/{id}/reports/{uid}` 문서 쓰기 | 신고 수, 상태, 작성자 평판 갱신 |
 | `prepareDatasetDownload` | HTTPS `onRequest` | CLI/외부 클라이언트용 데이터셋 ZIP 준비 후 JSON 응답 |
+| `cliGoogleAuth` | HTTPS `onRequest` | CLI용 Google device-flow 시작/폴링 프록시 |
+| `debugUploadDataset` | HTTPS `onRequest` | CLI 디버그용 JSONL 테스트 데이터 업로드 |
 | `upsertCliProfile` | HTTPS `onRequest` | CLI용 사용자 프로필 생성/병합 |
 | `prepareDownload` | Callable `onCall` | 다운로드용 ZIP 생성 또는 캐시 재사용 후 서명 URL 반환 |
 | `registerModel` | Callable `onCall` | Hugging Face 모델 URL 기반 모델 레지스트리 등록 |
@@ -227,6 +229,100 @@ CLI가 Firebase ID 토큰을 전달해 `users/{uid}` 프로필을 만들거나 �
 {
   "displayName": "Alice",
   "photoURL": "https://example.com/avatar.png"
+}
+```
+
+### `debugUploadDataset`
+
+CLI에서 로컬 JSONL 테스트 파일을 직접 보내서 백엔드 업로드 검증/정규화 파이프라인을 디버깅할 수 있는 `onRequest` 엔드포인트다.
+
+입력:
+
+- `Authorization: Bearer <firebase-id-token>`
+- JSON body
+
+```json
+{
+  "filename": "legal-ko.jsonl",
+  "content": "{\"messages\":[...]}\\n",
+  "datasetId": "debug-legal-ko",
+  "title": "Legal Debug Dataset",
+  "sourceModel": "human"
+}
+```
+
+동작:
+
+- bearer token이 없으면 `401`
+- `content`가 비어 있으면 `400`
+- 원본 JSONL을 `datasets/{uid}/debug/{datasetId}.jsonl` 경로로 저장
+- 내부적으로 `processDatasetUpload`를 재사용한다
+- 정규화 결과는 기존 업로드와 동일하게 `normalized/{datasetId}/dataset.jsonl`에 저장된다
+
+응답 예시:
+
+```json
+{
+  "ok": true,
+  "dataset": {
+    "id": "debug-legal-ko",
+    "status": "active",
+    "normalizedStoragePath": "normalized/debug-legal-ko/dataset.jsonl"
+  }
+}
+```
+
+### `cliGoogleAuth`
+
+CLI에서 Google client secret을 직접 들고 있지 않도록, 백엔드가 Google device flow를 대신 시작하고 폴링하는 `onRequest` 엔드포인트다.
+
+필수 백엔드 환경 변수:
+
+- `BURSTCHESTER_GOOGLE_CLIENT_ID` 또는 `GOOGLE_CLIENT_ID`
+- `BURSTCHESTER_GOOGLE_CLIENT_SECRET` 또는 `GOOGLE_CLIENT_SECRET`
+
+입력:
+
+- `Authorization: Bearer <firebase-id-token>`
+- JSON body
+
+시작 요청:
+
+```json
+{
+  "action": "start"
+}
+```
+
+폴링 요청:
+
+```json
+{
+  "action": "poll",
+  "deviceCode": "..."
+}
+```
+
+시작 응답 예시:
+
+```json
+{
+  "ok": true,
+  "status": "pending",
+  "deviceCode": "...",
+  "userCode": "ABCD-EFGH",
+  "verificationUrl": "https://www.google.com/device",
+  "interval": 5
+}
+```
+
+승인 완료 응답 예시:
+
+```json
+{
+  "ok": true,
+  "status": "approved",
+  "idToken": "google-id-token"
 }
 ```
 

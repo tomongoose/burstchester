@@ -12,12 +12,13 @@
 
 ### 익명 로그인 후 Google 계정으로 업그레이드
 
-필수 환경 변수:
+기본값이 CLI에 내장되어 있다. 아래 값들은 `bustchester-e08c3` 프로젝트 기준으로 자동 설정된다.
 
-- `BURSTCHESTER_FIREBASE_API_KEY`
-- `BURSTCHESTER_PROFILE_URL`
-- `BURSTCHESTER_GOOGLE_CLIENT_ID`
-- `BURSTCHESTER_GOOGLE_CLIENT_SECRET`
+- Firebase API key
+- `upsertCliProfile` 함수 URL
+- `cliGoogleAuth` 함수 URL
+
+다른 프로젝트를 쓰고 싶을 때만 `--api-key`, `--profile-url`, `--google-auth-url` 또는 대응 env를 넘기면 된다.
 
 ```bash
 node src/cli.mjs auth profile --display-name "Alice"
@@ -27,7 +28,7 @@ node src/cli.mjs auth profile --display-name "Alice"
 
 - 로컬 세션이 없으면 Firebase 익명 로그인
 - `upsertCliProfile` 엔드포인트로 프로필 생성
-- Google device flow를 시작하고 브라우저 승인 코드를 안내
+- 백엔드의 `cliGoogleAuth` 엔드포인트를 통해 Google device flow를 시작하고 브라우저 승인 코드를 안내
 - 승인 완료 후 같은 Firebase 계정에 `google.com` provider를 링크
 - 갱신된 세션을 `~/.burstchester/session.json`에 저장
 
@@ -47,7 +48,6 @@ node src/cli.mjs auth logout
 
 ```bash
 node src/cli.mjs download-dataset \
-  --backend-url https://us-central1-<project>.cloudfunctions.net/prepareDatasetDownload \
   --dataset-id <dataset-id>
 ```
 
@@ -66,11 +66,36 @@ node src/cli.mjs download-model \
   --url https://huggingface.co/burstchester/legal-ko-qlora/resolve/main/adapter_model.safetensors
 ```
 
+### 디버그용 테스트 데이터 업로드
+
+로컬 JSONL 파일을 백엔드의 디버그 업로드 엔드포인트로 보내서 실제 `datasets/{id}` 레코드를 생성한다.
+
+```bash
+node src/cli.mjs upload-test-dataset \
+  --file ./fixtures/legal-ko.jsonl \
+  --title "Legal Debug Dataset"
+```
+
+선택 플래그:
+
+- `--dataset-id`
+- `--title`
+- `--description`
+- `--tags`
+- `--base-model-hint`
+- `--task-type`
+- `--language`
+- `--license`
+- `--source-model`
+- `--output-model-id`
+- `--upload-url`
+
+기본 업로드 URL도 CLI에 내장되어 있으며 `debugUploadDataset` 함수를 가리킨다.
+
 ### 학습 실행
 
 ```bash
 node src/cli.mjs train \
-  --backend-url https://us-central1-<project>.cloudfunctions.net/prepareDatasetDownload \
   --dataset-id <dataset-id> \
   --model-repo Qwen/Qwen3-0.6B
 ```

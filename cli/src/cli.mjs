@@ -5,7 +5,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs, requiredFlag } from "./lib/args.mjs";
-import { fetchDatasetPackageMetadata } from "./lib/backend.mjs";
+import { fetchDatasetPackageMetadata, uploadDebugDataset } from "./lib/backend.mjs";
+import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
 import { downloadToFile, ensureDir } from "./lib/download.mjs";
 import {
   decodeJwtPayload,
@@ -36,6 +37,9 @@ async function main(argv) {
     case "download-model":
       await handleDownloadModel(flags);
       return;
+    case "upload-test-dataset":
+      await handleUploadTestDataset(flags);
+      return;
     case "train":
       await handleTrain(flags);
       return;
@@ -65,7 +69,11 @@ async function handleAuth(flags, positionals) {
 
 async function handleAuthStatus(flags) {
   let session = await loadSession();
-  const apiKey = resolveConfig(flags["api-key"], process.env.BURSTCHESTER_FIREBASE_API_KEY);
+  const apiKey = resolveConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
 
   if (!session) {
     process.stdout.write(`${JSON.stringify({ signedIn: false }, null, 2)}\n`);
@@ -99,8 +107,24 @@ async function handleAuthStatus(flags) {
 }
 
 async function handleAuthProfile(flags) {
-  const apiKey = requiredConfig(flags["api-key"], process.env.BURSTCHESTER_FIREBASE_API_KEY, "api-key");
-  const profileUrl = requiredConfig(flags["profile-url"], process.env.BURSTCHESTER_PROFILE_URL, "profile-url");
+  const apiKey = requiredConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    "api-key",
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+  const profileUrl = requiredConfig(
+    flags["profile-url"],
+    process.env.BURSTCHESTER_PROFILE_URL,
+    "profile-url",
+    BURSTCHESTER_DEFAULTS.profileUrl,
+  );
+  const googleAuthUrl = requiredConfig(
+    flags["google-auth-url"],
+    process.env.BURSTCHESTER_GOOGLE_AUTH_URL,
+    "google-auth-url",
+    BURSTCHESTER_DEFAULTS.googleAuthUrl,
+  );
   const displayName = requiredFlag(flags, "display-name");
   const photoURL = optionalConfig(flags["photo-url"], process.env.BURSTCHESTER_PROFILE_PHOTO_URL);
 
@@ -126,33 +150,23 @@ async function handleAuthProfile(flags) {
 
   let upgraded = false;
   if (session.isAnonymous) {
-    const googleClientId = requiredConfig(
-      flags["google-client-id"],
-      process.env.BURSTCHESTER_GOOGLE_CLIENT_ID,
-      "google-client-id",
-    );
-    const googleClientSecret = requiredConfig(
-      flags["google-client-secret"],
-      process.env.BURSTCHESTER_GOOGLE_CLIENT_SECRET,
-      "google-client-secret",
-    );
-
     const device = await startGoogleDeviceFlow({
-      clientId: googleClientId,
+      authUrl: googleAuthUrl,
+      firebaseIdToken: session.idToken,
     });
 
     process.stdout.write(
       [
         "Google 로그인 승인 필요",
-        `브라우저에서 ${device.verification_url} 를 열고 코드 ${device.user_code} 를 입력하세요.`,
+        `브라우저에서 ${device.verificationUrl} 를 열고 코드 ${device.userCode} 를 입력하세요.`,
         "",
       ].join("\n"),
     );
 
     const googleTokens = await pollGoogleDeviceFlow({
-      clientId: googleClientId,
-      clientSecret: googleClientSecret,
-      deviceCode: device.device_code,
+      authUrl: googleAuthUrl,
+      firebaseIdToken: session.idToken,
+      deviceCode: device.deviceCode,
       interval: device.interval,
     });
 
@@ -203,7 +217,11 @@ async function handleAuthProfile(flags) {
 }
 
 async function handleDownloadDataset(flags) {
-  const endpointUrl = requiredFlag(flags, "backend-url");
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
   const datasetId = requiredFlag(flags, "dataset-id");
   const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
   const extract = flags.extract !== "false";
@@ -254,8 +272,67 @@ async function handleDownloadModel(flags) {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
+async function handleUploadTestDataset(flags) {
+  let session = await loadSession();
+  if (!session) {
+    throw new Error("No CLI session found. Run `auth profile --display-name ...` first.");
+  }
+
+  const apiKey = resolveConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+  if (isSessionExpired(session)) {
+    session = {
+      ...session,
+      ...await refreshFirebaseSession({
+        apiKey,
+        refreshToken: session.refreshToken,
+      }),
+    };
+    await saveSession(session);
+  }
+
+  const endpointUrl = resolveConfig(
+    flags["upload-url"],
+    process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
+    BURSTCHESTER_DEFAULTS.debugUploadUrl,
+  );
+  const filePath = requiredFlag(flags, "file");
+  const filename = typeof flags.filename === "string" && flags.filename.trim()
+    ? flags.filename.trim()
+    : filePath.split("/").at(-1) || "debug.jsonl";
+  const content = await readFile(resolve(filePath), "utf8");
+
+  const dataset = await uploadDebugDataset({
+    endpointUrl,
+    idToken: session.idToken,
+    filename,
+    content,
+    metadata: {
+      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      tags: typeof flags.tags === "string" ? flags.tags : undefined,
+      baseModelHint: typeof flags["base-model-hint"] === "string" ? flags["base-model-hint"] : undefined,
+      taskType: typeof flags["task-type"] === "string" ? flags["task-type"] : undefined,
+      language: typeof flags.language === "string" ? flags.language : undefined,
+      license: typeof flags.license === "string" ? flags.license : undefined,
+      sourceModel: typeof flags["source-model"] === "string" ? flags["source-model"] : undefined,
+      outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
+    },
+  });
+
+  process.stdout.write(`${JSON.stringify({ ok: true, dataset }, null, 2)}\n`);
+}
+
 async function handleTrain(flags) {
-  const endpointUrl = requiredFlag(flags, "backend-url");
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
   const datasetId = requiredFlag(flags, "dataset-id");
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
@@ -315,12 +392,13 @@ function printUsage() {
       "",
       "Commands:",
       "  auth status",
-      "  auth profile --display-name <name> --api-key <firebase-key> --profile-url <url>",
+      "  auth profile --display-name <name> --api-key <firebase-key> --profile-url <url> --google-auth-url <url>",
       "  auth logout",
-      "  download-dataset --backend-url <url> --dataset-id <id> [--out-dir <dir>] [--extract false]",
+      "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
       "  download-model --url <hf-url> [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
-      "  train --backend-url <url> --dataset-id <id> --model-repo <org/model> [--workspace <dir>]",
+      "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
+      "  train [--backend-url <url>] --dataset-id <id> --model-repo <org/model> [--workspace <dir>]",
       "",
     ].join("\n"),
   );
@@ -331,8 +409,8 @@ main(process.argv.slice(2)).catch((error) => {
   process.exitCode = 1;
 });
 
-function requiredConfig(flagValue, envValue, name) {
-  const value = resolveConfig(flagValue, envValue);
+function requiredConfig(flagValue, envValue, name, defaultValue = "") {
+  const value = resolveConfig(flagValue, envValue, defaultValue);
   if (!value) {
     throw new Error(`Missing required flag or env for ${name}`);
   }
@@ -340,18 +418,22 @@ function requiredConfig(flagValue, envValue, name) {
   return value;
 }
 
-function optionalConfig(flagValue, envValue) {
-  const value = resolveConfig(flagValue, envValue);
+function optionalConfig(flagValue, envValue, defaultValue = "") {
+  const value = resolveConfig(flagValue, envValue, defaultValue);
   return value || null;
 }
 
-function resolveConfig(flagValue, envValue) {
+function resolveConfig(flagValue, envValue, defaultValue = "") {
   if (typeof flagValue === "string" && flagValue.trim()) {
     return flagValue.trim();
   }
 
   if (typeof envValue === "string" && envValue.trim()) {
     return envValue.trim();
+  }
+
+  if (typeof defaultValue === "string" && defaultValue.trim()) {
+    return defaultValue.trim();
   }
 
   return "";

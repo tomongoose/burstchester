@@ -1,30 +1,48 @@
+export function buildCliGoogleAuthRequest({
+  authUrl,
+  firebaseIdToken,
+  action,
+  deviceCode,
+}) {
+  return {
+    url: authUrl,
+    options: {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${firebaseIdToken}`,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        action,
+        ...(deviceCode ? { deviceCode } : {}),
+      }),
+    },
+  };
+}
+
 export async function startGoogleDeviceFlow({
-  clientId,
-  scope = "openid email profile",
+  authUrl,
+  firebaseIdToken,
   fetchImpl = fetch,
 }) {
-  const response = await fetchImpl("https://oauth2.googleapis.com/device/code", {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      client_id: clientId,
-      scope,
-    }),
+  const request = buildCliGoogleAuthRequest({
+    authUrl,
+    firebaseIdToken,
+    action: "start",
   });
-
+  const response = await fetchImpl(request.url, request.options);
   const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload?.error_description || payload?.error || "Failed to start Google device flow.");
+  if (!response.ok || payload?.ok !== true) {
+    throw new Error(payload?.error || "Failed to start Google device flow.");
   }
 
   return payload;
 }
 
 export async function pollGoogleDeviceFlow({
-  clientId,
-  clientSecret,
+  authUrl,
+  firebaseIdToken,
   deviceCode,
   interval,
   fetchImpl = fetch,
@@ -35,34 +53,30 @@ export async function pollGoogleDeviceFlow({
   for (;;) {
     await sleepImpl(pollIntervalMs);
 
-    const response = await fetchImpl("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code: deviceCode,
-        grant_type: "http://oauth.net/grant_type/device/1.0",
-      }),
+    const request = buildCliGoogleAuthRequest({
+      authUrl,
+      firebaseIdToken,
+      action: "poll",
+      deviceCode,
     });
-
+    const response = await fetchImpl(request.url, request.options);
     const payload = await response.json();
-    if (response.ok) {
-      return payload;
+    if (!response.ok || payload?.ok !== true) {
+      throw new Error(payload?.error || "Google device flow failed.");
     }
 
-    if (payload?.error === "authorization_pending") {
+    if (payload.status === "approved" && payload.idToken) {
+      return {
+        id_token: payload.idToken,
+      };
+    }
+
+    if (payload.status === "pending") {
+      pollIntervalMs = Number(payload.interval || 5) * 1000;
       continue;
     }
 
-    if (payload?.error === "slow_down") {
-      pollIntervalMs += 5_000;
-      continue;
-    }
-
-    throw new Error(payload?.error_description || payload?.error || "Google device flow failed.");
+    throw new Error("Unexpected Google device flow response.");
   }
 }
 

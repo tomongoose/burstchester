@@ -4,6 +4,31 @@ export function buildDatasetDownloadUrl(endpointUrl, datasetId) {
   return url.toString();
 }
 
+export function buildDebugUploadRequest({
+  endpointUrl,
+  idToken,
+  filename,
+  content,
+  metadata = {},
+}) {
+  return {
+    url: endpointUrl,
+    options: {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        filename,
+        content,
+        ...metadata,
+      }),
+    },
+  };
+}
+
 export async function fetchDatasetPackageMetadata({
   endpointUrl,
   datasetId,
@@ -26,4 +51,29 @@ export async function fetchDatasetPackageMetadata({
   }
 
   return payload;
+}
+
+export async function uploadDebugDataset({
+  endpointUrl,
+  idToken,
+  filename,
+  content,
+  metadata = {},
+  fetchImpl = fetch,
+}) {
+  const request = buildDebugUploadRequest({
+    endpointUrl,
+    idToken,
+    filename,
+    content,
+    metadata,
+  });
+
+  const response = await fetchImpl(request.url, request.options);
+  const payload = await response.json();
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || `Debug dataset upload failed with status ${response.status}.`);
+  }
+
+  return payload.dataset;
 }
