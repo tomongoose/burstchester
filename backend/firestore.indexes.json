@@ -1,0 +1,24 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "memories",
+      "fieldPath": "createdAt",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "memories",
+      "fieldPath": "embedding",
+      "vectorConfig": {
+        "dimension": 768,
+        "flat": {}
+      }
+    }
+  ]
+}
