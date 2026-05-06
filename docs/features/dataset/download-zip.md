@@ -1,10 +1,13 @@
 # dataset-download-zip (B5)
 
-> 다운로드 시점 zip 패키징 + Modelfile 템플릿 + Colab 링크 옵션.
+> 다운로드 시점 zip 패키징 + Modelfile 템플릿 + Colab 링크 옵션 + frontend wiring.
 
 **도메인**: dataset / packaging
-**관련 plan**: [`../../plans/backend-hardening-plan.md`](../../plans/backend-hardening-plan.md)
-**상태**: Phase 1-6 완료
+**관련 plan**:
+- Backend hardening: [`../../plans/backend-hardening-plan.md`](../../plans/backend-hardening-plan.md)
+- Frontend wiring: [`../../plans/download-button-wiring-plan.md`](../../plans/download-button-wiring-plan.md)
+
+**상태**: Backend Hardened + Frontend wiring 완료 (end-to-end)
 
 ---
 
@@ -58,3 +61,38 @@ const readme = buildReadmeTemplate(dataset, {
 ```
 
 옵션이 없으면 README의 Colab 섹션 자체가 생략 (backward compatible).
+
+---
+
+## Frontend Wiring (download-button-wiring plan)
+
+`/datasets/[id]` 페이지에서 다운로드 버튼이 backend `prepareDownload` Callable과 연결됨.
+
+### 흐름
+```
+사용자 → DownloadButton 클릭
+  → callPrepareDownload({callable}, datasetId)
+    → httpsCallable(getFirebaseFunctions(), "prepareDownload")({datasetId})
+    → backend prepareDownload Callable → backend prepareDownloadCore
+    → response.url 반환
+  → triggerBrowserDownload(url, {navigate})
+    → window.location.assign(url) → 브라우저 다운로드 시작
+```
+
+### 모듈 (frontend)
+- `frontend/lib/datasets/download.ts` — `callPrepareDownload`, `triggerBrowserDownload` (deps 주입 형태)
+- `frontend/components/datasets/DownloadButton.tsx` — 3 상태 (idle/pending/error) + retry
+- `frontend/app/datasets/[id]/page.tsx` — `httpsCallable` + `window.location.assign` 어댑터 주입
+
+### 상태 전이
+- `idle` → 클릭 → `pending` → 응답 성공 → `idle` (브라우저가 다운로드 시작)
+- `pending` → 응답 실패 → `error` (`role="alert"`) → Retry 클릭 → `pending`
+
+### 알려진 제약
+- Signed URL 만료(1시간) 자동 갱신 X — 사용자가 새로 클릭해야 함 (별도 plan: `signed-url-auto-refresh`)
+- 다운로드 진행률/청크 표시 없음 (별도 plan: `download-progress`)
+- 다운로드 히스토리 컬렉션 없음 (별도 plan: `download-history`)
+
+### 테스트
+- `frontend/tests/datasets/download.test.ts` (5 case) — service wrapper
+- `frontend/tests/components/download-button.test.tsx` (6 case, RTL) — 컴포넌트 상태 흐름

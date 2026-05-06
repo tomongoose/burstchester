@@ -210,7 +210,9 @@ burstchester/
 
 ---
 
-### B5. `dataset-download-zip`
+### B5. `dataset-download-zip` ✅ 완료 (frontend wiring 포함)
+> Backend hardening: [`backend-hardening-plan.md`](./backend-hardening-plan.md). Frontend wiring: [`download-button-wiring-plan.md`](./download-button-wiring-plan.md). Feature 문서: [`../features/dataset/download-zip.md`](../features/dataset/download-zip.md)
+
 다운로드 시점에 zip 패키징 + Modelfile 템플릿 생성.
 
 **스콥**:

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { getDb } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { getDb, getFirebaseFunctions } from "@/lib/firebase";
 import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
 import { buildDatasetJsonLd } from "@/lib/datasets/seo";
+import { DownloadButton } from "@/components/datasets/DownloadButton";
+import type { PrepareDownloadResponse } from "@/lib/datasets/download";
 import { useParams } from "next/navigation";
 
 export default function DatasetDetailPage() {
@@ -24,6 +27,17 @@ export default function DatasetDetailPage() {
       setSummary(buildDatasetSummary({ ...data, id: snap.id }));
     });
   }, [id]);
+
+  const callable = useMemo(() => {
+    const fn = httpsCallable<{ datasetId: string }, PrepareDownloadResponse>(
+      getFirebaseFunctions(),
+      "prepareDownload",
+    );
+    return async (data: { datasetId: string }) => {
+      const result = await fn(data);
+      return { data: result.data };
+    };
+  }, []);
 
   if (!summary) return <main>Loading…</main>;
 
@@ -46,14 +60,11 @@ export default function DatasetDetailPage() {
           <li key={tag}>{tag}</li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={() =>
-          alert("Download wiring lands in a follow-up plan (download-button-wiring).")
-        }
-      >
-        Download
-      </button>
+      <DownloadButton
+        datasetId={summary.id}
+        callable={callable}
+        navigate={(url) => window.location.assign(url)}
+      />
     </main>
   );
 }
