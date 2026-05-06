@@ -5,15 +5,20 @@
 추가로 인증 부트스트랩도 포함한다. 현재 흐름은 다음 순서다.
 
 1. CLI가 Firebase 익명 세션을 만든다.
-2. 사용자가 로컬 프로필 이름을 저장한다.
+2. 사용자가 `upsertCliProfile` 엔드포인트를 통해 Firestore 프로필을 만든다.
 
 ## 제공 명령
 
 ### 익명 로그인 후 Google 계정으로 업그레이드
 
-기본값이 CLI에 내장되어 있다. 현재 배포 상태 기준으로 자동 설정되는 값은 Firebase API key 뿐이다.
+기본값이 CLI에 내장되어 있다. 현재 `bustchester-e08c3` 프로젝트 기준으로 자동 설정되는 값은 다음이다.
 
-다른 프로젝트를 쓰고 싶을 때만 `--api-key` 또는 대응 env를 넘기면 된다.
+- Firebase API key
+- `upsertCliProfile`
+- `prepareDatasetDownload`
+- `debugUploadDataset`
+
+다른 프로젝트를 쓰고 싶을 때만 대응 플래그나 env를 넘기면 된다.
 
 ```bash
 node src/cli.mjs auth profile --display-name "Alice"
@@ -22,13 +27,31 @@ node src/cli.mjs auth profile --display-name "Alice"
 이 명령은:
 
 - 로컬 세션이 없으면 Firebase 익명 로그인
-- 로컬 세션에 `displayName`과 `photoURL`을 저장
+- `upsertCliProfile` 엔드포인트로 Firestore 프로필 생성/병합
 - 갱신된 세션을 `~/.burstchester/session.json`에 저장
 
 세션 상태 확인:
 
 ```bash
 node src/cli.mjs auth status
+```
+
+허깅페이스 토큰 저장:
+
+```bash
+node src/cli.mjs auth huggingface
+```
+
+또는 명시적으로 넘길 수 있다.
+
+```bash
+node src/cli.mjs auth huggingface --token hf_xxx
+```
+
+저장된 토큰 삭제:
+
+```bash
+node src/cli.mjs auth huggingface --clear
 ```
 
 로그아웃:
@@ -51,6 +74,13 @@ node src/cli.mjs download-model \
   --repo burstchester/legal-ko-qlora \
   --file adapter_model.safetensors
 ```
+
+`download-model`은 토큰 우선순위를 다음 순서로 본다.
+
+1. `--token`
+2. 로컬에 저장된 Hugging Face 토큰
+3. `HF_TOKEN`
+4. `HUGGING_FACE_HUB_TOKEN`
 
 또는 전체 URL을 직접 줄 수 있다.
 
@@ -83,7 +113,7 @@ node src/cli.mjs upload-test-dataset \
 - `--output-model-id`
 - `--upload-url`
 
-현재 배포된 Firebase Functions에는 `debugUploadDataset`가 없으므로, 이 명령은 해당 함수를 배포한 뒤 `--upload-url`을 넘겨서 사용해야 한다.
+기본 업로드 URL도 CLI에 내장되어 있으며 `debugUploadDataset` 함수를 가리킨다.
 
 ### 학습 실행
 

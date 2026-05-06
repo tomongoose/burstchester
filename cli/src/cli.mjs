@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +15,7 @@ import {
   signInAnonymously,
 } from "./lib/firebase-auth.mjs";
 import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
+import { upsertCliProfile } from "./lib/profile.mjs";
 import { clearSession, loadSession, saveSession } from "./lib/session.mjs";
 import { buildTrainingManifest, runTraining } from "./lib/train.mjs";
 import { extractStoredZip } from "./lib/zip.mjs";
@@ -50,6 +52,9 @@ async function handleAuth(flags, positionals) {
   switch (subcommand) {
     case "status":
       await handleAuthStatus(flags);
+      return;
+    case "huggingface":
+      await handleAuthHuggingFace(flags);
       return;
     case "profile":
       await handleAuthProfile(flags);
@@ -102,6 +107,33 @@ async function handleAuthStatus(flags) {
   );
 }
 
+async function handleAuthHuggingFace(flags) {
+  const session = (await loadSession()) ?? {};
+
+  if (flags.clear === true) {
+    delete session.huggingFaceToken;
+    await saveSession(session);
+    process.stdout.write(`${JSON.stringify({ ok: true, cleared: true }, null, 2)}\n`);
+    return;
+  }
+
+  let token = typeof flags.token === "string" ? flags.token : "";
+  if (!token.trim()) {
+    token = await promptForToken("Hugging Face token: ");
+  }
+
+  const normalized = normalizeLocalToken(token);
+  if (!normalized) {
+    throw new Error("Hugging Face token must not be empty.");
+  }
+
+  session.huggingFaceToken = normalized;
+  await saveSession(session);
+  process.stdout.write(
+    `${JSON.stringify({ ok: true, stored: true, tokenPreview: `${normalized.slice(0, 6)}...` }, null, 2)}\n`,
+  );
+}
+
 async function handleAuthProfile(flags) {
   const apiKey = requiredConfig(
     flags["api-key"],
@@ -111,6 +143,11 @@ async function handleAuthProfile(flags) {
   );
   const displayName = requiredFlag(flags, "display-name");
   const photoURL = optionalConfig(flags["photo-url"], process.env.BURSTCHESTER_PROFILE_PHOTO_URL);
+  const profileUrl = resolveConfig(
+    flags["profile-url"],
+    process.env.BURSTCHESTER_PROFILE_URL,
+    BURSTCHESTER_DEFAULTS.profileUrl,
+  );
 
   let session = await loadSession();
   if (!session) {
@@ -125,8 +162,16 @@ async function handleAuthProfile(flags) {
     };
   }
 
-  session.displayName = displayName;
-  session.photoURL = photoURL || session.photoURL || null;
+  const profile = await upsertCliProfile({
+    profileUrl,
+    idToken: session.idToken,
+    displayName,
+    photoURL,
+  });
+
+  session.displayName = profile.displayName;
+  session.photoURL = profile.photoURL || null;
+  session.email = profile.email || session.email || "";
   await saveSession(session);
 
   process.stdout.write(
@@ -140,12 +185,7 @@ async function handleAuthProfile(flags) {
           providerId: session.providerId,
           email: session.email || "",
         },
-        profile: {
-          uid: session.userId,
-          displayName: session.displayName,
-          email: session.email || "",
-          photoURL: session.photoURL || "",
-        },
+        profile,
       },
       null,
       2,
@@ -154,10 +194,11 @@ async function handleAuthProfile(flags) {
 }
 
 async function handleDownloadDataset(flags) {
-  const endpointUrl = resolveConfig(flags["backend-url"], process.env.BURSTCHESTER_BACKEND_URL);
-  if (!endpointUrl) {
-    throw new Error("Dataset download endpoint is not deployed. Pass --backend-url after deploying prepareDatasetDownload.");
-  }
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
   const datasetId = requiredFlag(flags, "dataset-id");
   const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
   const extract = flags.extract !== "false";
@@ -192,6 +233,7 @@ async function handleDownloadModel(flags) {
   const repo = typeof flags.repo === "string" ? flags.repo : undefined;
   const file = typeof flags.file === "string" ? flags.file : undefined;
   const revision = typeof flags.revision === "string" ? flags.revision : "main";
+  const session = await loadSession();
 
   if (!url && !(repo && file)) {
     throw new Error("download-model requires --url or --repo with --file");
@@ -203,6 +245,7 @@ async function handleDownloadModel(flags) {
     file,
     revision,
     outDir,
+    token: resolveDownloadToken(flags, session),
   });
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -230,10 +273,11 @@ async function handleUploadTestDataset(flags) {
     await saveSession(session);
   }
 
-  const endpointUrl = resolveConfig(flags["upload-url"], process.env.BURSTCHESTER_DEBUG_UPLOAD_URL);
-  if (!endpointUrl) {
-    throw new Error("Debug upload endpoint is not deployed. Pass --upload-url after deploying debugUploadDataset.");
-  }
+  const endpointUrl = resolveConfig(
+    flags["upload-url"],
+    process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
+    BURSTCHESTER_DEFAULTS.debugUploadUrl,
+  );
   const filePath = requiredFlag(flags, "file");
   const filename = typeof flags.filename === "string" && flags.filename.trim()
     ? flags.filename.trim()
@@ -263,10 +307,11 @@ async function handleUploadTestDataset(flags) {
 }
 
 async function handleTrain(flags) {
-  const endpointUrl = resolveConfig(flags["backend-url"], process.env.BURSTCHESTER_BACKEND_URL);
-  if (!endpointUrl) {
-    throw new Error("Dataset download endpoint is not deployed. Pass --backend-url after deploying prepareDatasetDownload.");
-  }
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
   const datasetId = requiredFlag(flags, "dataset-id");
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
@@ -326,7 +371,8 @@ function printUsage() {
       "",
       "Commands:",
       "  auth status",
-      "  auth profile --display-name <name> [--api-key <firebase-key>]",
+      "  auth huggingface [--token <hf_token>] [--clear]",
+      "  auth profile --display-name <name> [--api-key <firebase-key>] [--profile-url <url>]",
       "  auth logout",
       "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
       "  download-model --url <hf-url> [--out-dir <dir>]",
@@ -371,4 +417,30 @@ function resolveConfig(flagValue, envValue, defaultValue = "") {
   }
 
   return "";
+}
+
+function resolveDownloadToken(flags, session) {
+  return (
+    normalizeLocalToken(typeof flags.token === "string" ? flags.token : "")
+    || normalizeLocalToken(session?.huggingFaceToken)
+    || normalizeLocalToken(process.env.HF_TOKEN)
+    || normalizeLocalToken(process.env.HUGGING_FACE_HUB_TOKEN)
+    || ""
+  );
+}
+
+function normalizeLocalToken(token) {
+  return typeof token === "string" && token.trim() ? token.trim() : null;
+}
+
+async function promptForToken(prompt) {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    return await rl.question(prompt);
+  } finally {
+    rl.close();
+  }
 }

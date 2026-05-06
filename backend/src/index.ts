@@ -23,6 +23,7 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 const storage = getStorage();
+db.settings({ ignoreUndefinedProperties: true });
 
 type PrepareDownloadResult = Awaited<ReturnType<typeof prepareDownloadCore>>;
 type CliProfileRecord = {
@@ -91,7 +92,7 @@ export const onDatasetUpload = onObjectFinalized({ region: "us-central1" }, asyn
         });
       },
       upsertDataset: async (record) => {
-        await db.doc(`datasets/${record.id}`).set(record, { merge: true });
+        await db.doc(`datasets/${record.id}`).set(stripUndefinedDeep(record), { merge: true });
       },
       incrementUserUploads: async (ownerUid) => {
         await db.doc(`users/${ownerUid}`).set(
@@ -609,7 +610,7 @@ async function uploadDebugDatasetRecord(input: {
         });
       },
       upsertDataset: async (datasetRecord) => {
-        await db.doc(`datasets/${datasetRecord.id}`).set(datasetRecord, { merge: true });
+        await db.doc(`datasets/${datasetRecord.id}`).set(stripUndefinedDeep(datasetRecord), { merge: true });
       },
       incrementUserUploads: async (ownerUid) => {
         await db.doc(`users/${ownerUid}`).set(
@@ -831,4 +832,19 @@ function requireEnv(...names: string[]): string {
   }
 
   throw new Error(`Missing required environment variable: ${names.join(" or ")}`);
+}
+
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stripUndefinedDeep(entry)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    const cleanedEntries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== undefined)
+      .map(([key, entry]) => [key, stripUndefinedDeep(entry)]);
+    return Object.fromEntries(cleanedEntries) as T;
+  }
+
+  return value;
 }

@@ -16,4 +16,7 @@ export const BURSTCHESTER_DEFAULTS = Object.freeze({
   }),
   functionsBaseUrl: FUNCTIONS_BASE_URL,
   healthCheckUrl: `${FUNCTIONS_BASE_URL}/healthCheck`,
+  profileUrl: `${FUNCTIONS_BASE_URL}/upsertCliProfile`,
+  datasetDownloadUrl: `${FUNCTIONS_BASE_URL}/prepareDatasetDownload`,
+  debugUploadUrl: `${FUNCTIONS_BASE_URL}/debugUploadDataset`,
 });

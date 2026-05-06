@@ -6,13 +6,35 @@ export function buildHuggingFaceFileUrl(repo, file, revision = "main") {
   return `https://huggingface.co/${repo}/resolve/${revision}/${file}`;
 }
 
+export function normalizeHuggingFaceToken(token) {
+  if (typeof token !== "string") {
+    return null;
+  }
+
+  const trimmed = token.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function resolveHuggingFaceToken({
+  explicitToken,
+  storedToken,
+  envToken,
+}) {
+  return (
+    normalizeHuggingFaceToken(explicitToken)
+    || normalizeHuggingFaceToken(storedToken)
+    || normalizeHuggingFaceToken(envToken)
+    || ""
+  );
+}
+
 export async function downloadHuggingFaceFile({
   url,
   repo,
   file,
   revision = "main",
   outDir,
-  token = process.env.HF_TOKEN || process.env.HUGGING_FACE_HUB_TOKEN || "",
+  token = "",
   fetchImpl = fetch,
 }) {
   const resolvedUrl = url || buildHuggingFaceFileUrl(repo, file, revision);
