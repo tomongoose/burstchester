@@ -1,4 +1,5 @@
 import { initializeApp, getApps } from "firebase-admin/app";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import type { Request, Response } from "express";
@@ -20,6 +21,14 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 const storage = getStorage();
+
+type PrepareDownloadResult = Awaited<ReturnType<typeof prepareDownloadCore>>;
+type CliProfileRecord = {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+};
 
 export async function healthCheckHandler(
   _request: Request,
@@ -149,6 +158,100 @@ export const onReportWrite = onDocumentWritten(
   },
 );
 
+export async function prepareDatasetDownloadHandler(
+  request: Pick<Request, "query" | "body">,
+  response: Response,
+  prepareDownloadRequest: (datasetId: string) => Promise<PrepareDownloadResult> = (datasetId) =>
+    executePrepareDownload(datasetId),
+): Promise<void> {
+  const datasetId = readDatasetId(request);
+  if (!datasetId) {
+    response.status(400).json({
+      ok: false,
+      error: "datasetId is required.",
+    });
+    return;
+  }
+
+  try {
+    const result = await prepareDownloadRequest(datasetId);
+    response.status(200).json({
+      ok: true,
+      datasetId,
+      ...result,
+    });
+  } catch (error) {
+    logger.error("prepareDatasetDownload failed", error);
+    response.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Dataset download preparation failed.",
+    });
+  }
+}
+
+export const prepareDatasetDownload = onRequest(
+  { region: "us-central1" },
+  prepareDatasetDownloadHandler,
+);
+
+export async function upsertCliProfileHandler(
+  request: Pick<Request, "headers" | "body">,
+  response: Response,
+  deps: {
+    verifyIdToken: (idToken: string) => Promise<{ uid: string; email?: string; name?: string; picture?: string }>;
+    upsertProfile: (input: {
+      uid: string;
+      email?: string;
+      displayName: string;
+      photoURL?: string | null;
+    }) => Promise<CliProfileRecord>;
+  } = {
+    verifyIdToken: async (idToken) => getAdminAuth().verifyIdToken(idToken),
+    upsertProfile: upsertCliProfileRecord,
+  },
+): Promise<void> {
+  const bearerToken = readBearerToken(request);
+  if (!bearerToken) {
+    response.status(401).json({
+      ok: false,
+      error: "Missing bearer token.",
+    });
+    return;
+  }
+
+  const displayName = readStringField(request.body, "displayName").trim();
+  if (!displayName) {
+    response.status(400).json({
+      ok: false,
+      error: "displayName is required.",
+    });
+    return;
+  }
+
+  try {
+    const decoded = await deps.verifyIdToken(bearerToken);
+    const profile = await deps.upsertProfile({
+      uid: decoded.uid,
+      email: decoded.email,
+      displayName,
+      photoURL: readOptionalStringField(request.body, "photoURL") ?? decoded.picture,
+    });
+
+    response.status(200).json({
+      ok: true,
+      profile,
+    });
+  } catch (error) {
+    logger.error("upsertCliProfile failed", error);
+    response.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "CLI profile upsert failed.",
+    });
+  }
+}
+
+export const upsertCliProfile = onRequest({ region: "us-central1" }, upsertCliProfileHandler);
+
 export const prepareDownload = onCall({ region: "us-central1" }, async (request) => {
   if (!request.auth?.uid) {
     throw new HttpsError("unauthenticated", "Authentication is required.");
@@ -160,64 +263,7 @@ export const prepareDownload = onCall({ region: "us-central1" }, async (request)
   }
 
   try {
-    return await prepareDownloadCore(
-      {
-        datasetId,
-        requesterUid: request.auth.uid,
-      },
-      {
-        getDataset: async (id) => {
-          const snapshot = await db.doc(`datasets/${id}`).get();
-          return snapshot.exists ? (snapshot.data() as DatasetRecord) : null;
-        },
-        downloadNormalizedJsonl: async (dataset) => {
-          const path = dataset.normalizedStoragePath ?? pathFromGsUrl(dataset.storagePath);
-          const [bytes] = await storage.bucket().file(path).download();
-          return bytes.toString("utf8");
-        },
-        saveArchive: async (path, bytes) => {
-          await storage.bucket().file(path).save(bytes, {
-            contentType: "application/zip",
-          });
-        },
-        getSignedUrl: async (path) => {
-          const [url] = await storage.bucket().file(path).getSignedUrl({
-            action: "read",
-            expires: Date.now() + 60 * 60 * 1000,
-          });
-          return url;
-        },
-        setZipPath: async (id, zipPath) => {
-          await db.doc(`datasets/${id}`).set(
-            {
-              zipPath,
-              updatedAt: FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-        },
-        incrementDownloadStats: async (dataset) => {
-          const result = applyDownloadStats(dataset);
-          await db.runTransaction(async (transaction) => {
-            transaction.set(
-              db.doc(`datasets/${dataset.id}`),
-              {
-                downloadCount: result.dataset.downloadCount,
-                updatedAt: FieldValue.serverTimestamp(),
-              },
-              { merge: true },
-            );
-            transaction.set(
-              db.doc(`users/${result.owner.uid}`),
-              {
-                downloadCount: FieldValue.increment(result.owner.downloadCountDelta),
-              },
-              { merge: true },
-            );
-          });
-        },
-      },
-    );
+    return await executePrepareDownload(datasetId, request.auth.uid);
   } catch (error) {
     logger.error("prepareDownload failed", error);
     throw new HttpsError("internal", error instanceof Error ? error.message : "Download packaging failed.");
@@ -264,4 +310,150 @@ function pathFromGsUrl(gsUrl: string): string {
   }
 
   return match[1];
+}
+
+async function upsertCliProfileRecord(input: {
+  uid: string;
+  email?: string;
+  displayName: string;
+  photoURL?: string | null;
+}): Promise<CliProfileRecord> {
+  const ref = db.doc(`users/${input.uid}`);
+  const snapshot = await ref.get();
+  const existing = snapshot.exists ? (snapshot.data() as Partial<CliProfileRecord>) : null;
+  const displayName = input.displayName.trim() || existing?.displayName || "Anonymous";
+  const email = (input.email ?? existing?.email ?? "").trim();
+  const photoURL = (input.photoURL ?? existing?.photoURL ?? "").trim();
+
+  if (!snapshot.exists) {
+    const created = buildUserProfile({
+      uid: input.uid,
+      displayName,
+      email,
+      photoURL,
+    });
+    await ref.set(created, { merge: true });
+    return {
+      uid: created.uid,
+      displayName: created.displayName,
+      email: created.email,
+      photoURL: created.photoURL,
+    };
+  }
+
+  await ref.set(
+    {
+      displayName,
+      email,
+      photoURL,
+    },
+    { merge: true },
+  );
+
+  return {
+    uid: input.uid,
+    displayName,
+    email,
+    photoURL,
+  };
+}
+
+async function executePrepareDownload(
+  datasetId: string,
+  requesterUid?: string,
+): Promise<PrepareDownloadResult> {
+  return prepareDownloadCore(
+    {
+      datasetId,
+      requesterUid,
+    },
+    {
+      getDataset: async (id) => {
+        const snapshot = await db.doc(`datasets/${id}`).get();
+        return snapshot.exists ? (snapshot.data() as DatasetRecord) : null;
+      },
+      downloadNormalizedJsonl: async (dataset) => {
+        const path = dataset.normalizedStoragePath ?? pathFromGsUrl(dataset.storagePath);
+        const [bytes] = await storage.bucket().file(path).download();
+        return bytes.toString("utf8");
+      },
+      saveArchive: async (path, bytes) => {
+        await storage.bucket().file(path).save(bytes, {
+          contentType: "application/zip",
+        });
+      },
+      getSignedUrl: async (path) => {
+        const [url] = await storage.bucket().file(path).getSignedUrl({
+          action: "read",
+          expires: Date.now() + 60 * 60 * 1000,
+        });
+        return url;
+      },
+      setZipPath: async (id, zipPath) => {
+        await db.doc(`datasets/${id}`).set(
+          {
+            zipPath,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      },
+      incrementDownloadStats: async (dataset) => {
+        const result = applyDownloadStats(dataset);
+        await db.runTransaction(async (transaction) => {
+          transaction.set(
+            db.doc(`datasets/${dataset.id}`),
+            {
+              downloadCount: result.dataset.downloadCount,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+          transaction.set(
+            db.doc(`users/${result.owner.uid}`),
+            {
+              downloadCount: FieldValue.increment(result.owner.downloadCountDelta),
+            },
+            { merge: true },
+          );
+        });
+      },
+    },
+  );
+}
+
+function readDatasetId(request: Pick<Request, "query" | "body">): string {
+  const queryDatasetId =
+    typeof request.query?.datasetId === "string" ? request.query.datasetId :
+      Array.isArray(request.query?.datasetId) ? request.query.datasetId[0] :
+        "";
+  const bodyDatasetId =
+    request.body && typeof request.body === "object" && "datasetId" in request.body ?
+      String((request.body as Record<string, unknown>).datasetId ?? "") :
+      "";
+
+  return String(bodyDatasetId || queryDatasetId).trim();
+}
+
+function readBearerToken(request: Pick<Request, "headers">): string {
+  const header = request.headers?.authorization ?? request.headers?.Authorization;
+  if (typeof header !== "string") {
+    return "";
+  }
+
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function readStringField(body: unknown, field: string): string {
+  if (!body || typeof body !== "object" || !(field in body)) {
+    return "";
+  }
+
+  return String((body as Record<string, unknown>)[field] ?? "");
+}
+
+function readOptionalStringField(body: unknown, field: string): string | null {
+  const value = readStringField(body, field).trim();
+  return value ? value : null;
 }
