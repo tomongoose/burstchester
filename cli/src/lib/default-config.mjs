@@ -15,8 +15,5 @@ export const BURSTCHESTER_DEFAULTS = Object.freeze({
     measurementId: "G-XLYZE8H5LF",
   }),
   functionsBaseUrl: FUNCTIONS_BASE_URL,
-  profileUrl: `${FUNCTIONS_BASE_URL}/upsertCliProfile`,
-  googleAuthUrl: `${FUNCTIONS_BASE_URL}/cliGoogleAuth`,
-  datasetDownloadUrl: `${FUNCTIONS_BASE_URL}/prepareDatasetDownload`,
-  debugUploadUrl: `${FUNCTIONS_BASE_URL}/debugUploadDataset`,
+  healthCheckUrl: `${FUNCTIONS_BASE_URL}/healthCheck`,
 });

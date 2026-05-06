@@ -9,15 +9,11 @@ import { fetchDatasetPackageMetadata, uploadDebugDataset } from "./lib/backend.m
 import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
 import { downloadToFile, ensureDir } from "./lib/download.mjs";
 import {
-  decodeJwtPayload,
   isSessionExpired,
-  linkGoogleAccount,
   refreshFirebaseSession,
   signInAnonymously,
 } from "./lib/firebase-auth.mjs";
-import { pollGoogleDeviceFlow, startGoogleDeviceFlow } from "./lib/google-device.mjs";
 import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
-import { upsertCliProfile } from "./lib/profile.mjs";
 import { clearSession, loadSession, saveSession } from "./lib/session.mjs";
 import { buildTrainingManifest, runTraining } from "./lib/train.mjs";
 import { extractStoredZip } from "./lib/zip.mjs";
@@ -113,18 +109,6 @@ async function handleAuthProfile(flags) {
     "api-key",
     BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
   );
-  const profileUrl = requiredConfig(
-    flags["profile-url"],
-    process.env.BURSTCHESTER_PROFILE_URL,
-    "profile-url",
-    BURSTCHESTER_DEFAULTS.profileUrl,
-  );
-  const googleAuthUrl = requiredConfig(
-    flags["google-auth-url"],
-    process.env.BURSTCHESTER_GOOGLE_AUTH_URL,
-    "google-auth-url",
-    BURSTCHESTER_DEFAULTS.googleAuthUrl,
-  );
   const displayName = requiredFlag(flags, "display-name");
   const photoURL = optionalConfig(flags["photo-url"], process.env.BURSTCHESTER_PROFILE_PHOTO_URL);
 
@@ -141,74 +125,27 @@ async function handleAuthProfile(flags) {
     };
   }
 
-  let profile = await upsertCliProfile({
-    profileUrl,
-    idToken: session.idToken,
-    displayName,
-    photoURL,
-  });
-
-  let upgraded = false;
-  if (session.isAnonymous) {
-    const device = await startGoogleDeviceFlow({
-      authUrl: googleAuthUrl,
-      firebaseIdToken: session.idToken,
-    });
-
-    process.stdout.write(
-      [
-        "Google 로그인 승인 필요",
-        `브라우저에서 ${device.verificationUrl} 를 열고 코드 ${device.userCode} 를 입력하세요.`,
-        "",
-      ].join("\n"),
-    );
-
-    const googleTokens = await pollGoogleDeviceFlow({
-      authUrl: googleAuthUrl,
-      firebaseIdToken: session.idToken,
-      deviceCode: device.deviceCode,
-      interval: device.interval,
-    });
-
-    session = {
-      ...await linkGoogleAccount({
-        apiKey,
-        firebaseIdToken: session.idToken,
-        googleIdToken: googleTokens.id_token,
-      }),
-    };
-
-    const googleProfile = decodeJwtPayload(googleTokens.id_token);
-    profile = await upsertCliProfile({
-      profileUrl,
-      idToken: session.idToken,
-      displayName,
-      photoURL: photoURL || googleProfile.picture || null,
-    });
-
-    session.email = googleProfile.email || profile.email || "";
-    session.providerId = "google.com";
-    session.isAnonymous = false;
-    upgraded = true;
-  }
-
-  session.displayName = profile.displayName;
-  session.photoURL = profile.photoURL;
-  session.email = profile.email || session.email || "";
+  session.displayName = displayName;
+  session.photoURL = photoURL || session.photoURL || null;
   await saveSession(session);
 
   process.stdout.write(
     `${JSON.stringify(
       {
         ok: true,
-        upgraded,
+        upgraded: false,
         auth: {
           userId: session.userId,
           isAnonymous: session.isAnonymous,
           providerId: session.providerId,
           email: session.email || "",
         },
-        profile,
+        profile: {
+          uid: session.userId,
+          displayName: session.displayName,
+          email: session.email || "",
+          photoURL: session.photoURL || "",
+        },
       },
       null,
       2,
@@ -217,11 +154,10 @@ async function handleAuthProfile(flags) {
 }
 
 async function handleDownloadDataset(flags) {
-  const endpointUrl = resolveConfig(
-    flags["backend-url"],
-    process.env.BURSTCHESTER_BACKEND_URL,
-    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
-  );
+  const endpointUrl = resolveConfig(flags["backend-url"], process.env.BURSTCHESTER_BACKEND_URL);
+  if (!endpointUrl) {
+    throw new Error("Dataset download endpoint is not deployed. Pass --backend-url after deploying prepareDatasetDownload.");
+  }
   const datasetId = requiredFlag(flags, "dataset-id");
   const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
   const extract = flags.extract !== "false";
@@ -294,11 +230,10 @@ async function handleUploadTestDataset(flags) {
     await saveSession(session);
   }
 
-  const endpointUrl = resolveConfig(
-    flags["upload-url"],
-    process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
-    BURSTCHESTER_DEFAULTS.debugUploadUrl,
-  );
+  const endpointUrl = resolveConfig(flags["upload-url"], process.env.BURSTCHESTER_DEBUG_UPLOAD_URL);
+  if (!endpointUrl) {
+    throw new Error("Debug upload endpoint is not deployed. Pass --upload-url after deploying debugUploadDataset.");
+  }
   const filePath = requiredFlag(flags, "file");
   const filename = typeof flags.filename === "string" && flags.filename.trim()
     ? flags.filename.trim()
@@ -328,11 +263,10 @@ async function handleUploadTestDataset(flags) {
 }
 
 async function handleTrain(flags) {
-  const endpointUrl = resolveConfig(
-    flags["backend-url"],
-    process.env.BURSTCHESTER_BACKEND_URL,
-    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
-  );
+  const endpointUrl = resolveConfig(flags["backend-url"], process.env.BURSTCHESTER_BACKEND_URL);
+  if (!endpointUrl) {
+    throw new Error("Dataset download endpoint is not deployed. Pass --backend-url after deploying prepareDatasetDownload.");
+  }
   const datasetId = requiredFlag(flags, "dataset-id");
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
@@ -392,7 +326,7 @@ function printUsage() {
       "",
       "Commands:",
       "  auth status",
-      "  auth profile --display-name <name> --api-key <firebase-key> --profile-url <url> --google-auth-url <url>",
+      "  auth profile --display-name <name> [--api-key <firebase-key>]",
       "  auth logout",
       "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
       "  download-model --url <hf-url> [--out-dir <dir>]",

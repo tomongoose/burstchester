@@ -9,19 +9,7 @@ test("BURSTCHESTER_DEFAULTS embeds the shared Firebase project config", () => {
     "AIzaSyBT48mVt9IDw6Ctf_VjNl0JNc4S1SrVZfs",
   );
   assert.equal(
-    BURSTCHESTER_DEFAULTS.profileUrl,
-    "https://us-central1-bustchester-e08c3.cloudfunctions.net/upsertCliProfile",
-  );
-  assert.equal(
-    BURSTCHESTER_DEFAULTS.googleAuthUrl,
-    "https://us-central1-bustchester-e08c3.cloudfunctions.net/cliGoogleAuth",
-  );
-  assert.equal(
-    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
-    "https://us-central1-bustchester-e08c3.cloudfunctions.net/prepareDatasetDownload",
-  );
-  assert.equal(
-    BURSTCHESTER_DEFAULTS.debugUploadUrl,
-    "https://us-central1-bustchester-e08c3.cloudfunctions.net/debugUploadDataset",
+    BURSTCHESTER_DEFAULTS.healthCheckUrl,
+    "https://us-central1-bustchester-e08c3.cloudfunctions.net/healthCheck",
   );
 });

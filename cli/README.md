@@ -5,20 +5,15 @@
 추가로 인증 부트스트랩도 포함한다. 현재 흐름은 다음 순서다.
 
 1. CLI가 Firebase 익명 세션을 만든다.
-2. 사용자가 프로필을 작성한다.
-3. 같은 UID에 Google 계정을 링크해서 영구 계정으로 전환한다.
+2. 사용자가 로컬 프로필 이름을 저장한다.
 
 ## 제공 명령
 
 ### 익명 로그인 후 Google 계정으로 업그레이드
 
-기본값이 CLI에 내장되어 있다. 아래 값들은 `bustchester-e08c3` 프로젝트 기준으로 자동 설정된다.
+기본값이 CLI에 내장되어 있다. 현재 배포 상태 기준으로 자동 설정되는 값은 Firebase API key 뿐이다.
 
-- Firebase API key
-- `upsertCliProfile` 함수 URL
-- `cliGoogleAuth` 함수 URL
-
-다른 프로젝트를 쓰고 싶을 때만 `--api-key`, `--profile-url`, `--google-auth-url` 또는 대응 env를 넘기면 된다.
+다른 프로젝트를 쓰고 싶을 때만 `--api-key` 또는 대응 env를 넘기면 된다.
 
 ```bash
 node src/cli.mjs auth profile --display-name "Alice"
@@ -27,9 +22,7 @@ node src/cli.mjs auth profile --display-name "Alice"
 이 명령은:
 
 - 로컬 세션이 없으면 Firebase 익명 로그인
-- `upsertCliProfile` 엔드포인트로 프로필 생성
-- 백엔드의 `cliGoogleAuth` 엔드포인트를 통해 Google device flow를 시작하고 브라우저 승인 코드를 안내
-- 승인 완료 후 같은 Firebase 계정에 `google.com` provider를 링크
+- 로컬 세션에 `displayName`과 `photoURL`을 저장
 - 갱신된 세션을 `~/.burstchester/session.json`에 저장
 
 세션 상태 확인:
@@ -90,7 +83,7 @@ node src/cli.mjs upload-test-dataset \
 - `--output-model-id`
 - `--upload-url`
 
-기본 업로드 URL도 CLI에 내장되어 있으며 `debugUploadDataset` 함수를 가리킨다.
+현재 배포된 Firebase Functions에는 `debugUploadDataset`가 없으므로, 이 명령은 해당 함수를 배포한 뒤 `--upload-url`을 넘겨서 사용해야 한다.
 
 ### 학습 실행
 
