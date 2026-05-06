@@ -3,6 +3,9 @@ import {
   buildDatasetMetadata,
   buildDatasetJsonLd,
   buildSearchPageMetadata,
+  buildLandingPageMetadata,
+  buildTermsPageMetadata,
+  buildPrivacyPageMetadata,
 } from "@/lib/datasets/seo";
 
 const summary = {
@@ -44,6 +47,34 @@ describe("buildSearchPageMetadata", () => {
     const meta = buildSearchPageMetadata();
 
     expect(meta.title).toMatch(/Datasets/i);
+    expect(meta.description).toMatch(/.+/);
+  });
+});
+
+describe("buildLandingPageMetadata", () => {
+  it("returns non-empty title and description for the landing page", () => {
+    const meta = buildLandingPageMetadata();
+
+    expect(typeof meta.title).toBe("string");
+    expect(meta.title).toMatch(/Burstchester/i);
+    expect(meta.description).toMatch(/.+/);
+  });
+});
+
+describe("buildTermsPageMetadata", () => {
+  it("returns non-empty title and description for the terms page", () => {
+    const meta = buildTermsPageMetadata();
+
+    expect(meta.title).toMatch(/terms/i);
+    expect(meta.description).toMatch(/.+/);
+  });
+});
+
+describe("buildPrivacyPageMetadata", () => {
+  it("returns non-empty title and description for the privacy page", () => {
+    const meta = buildPrivacyPageMetadata();
+
+    expect(meta.title).toMatch(/privacy/i);
     expect(meta.description).toMatch(/.+/);
   });
 });

@@ -25,6 +25,30 @@ export function buildSearchPageMetadata(): Metadata {
   };
 }
 
+export function buildLandingPageMetadata(): Metadata {
+  return {
+    title: "Burstchester — LLM fine-tuning datasets, ready for Ollama",
+    description:
+      "Discover, share, and download high-quality fine-tuning datasets from the community. Run them locally with Ollama in three steps.",
+  };
+}
+
+export function buildTermsPageMetadata(): Metadata {
+  return {
+    title: "Terms of Use — Burstchester",
+    description:
+      "Terms of Use governing your access to and use of the Burstchester dataset hub.",
+  };
+}
+
+export function buildPrivacyPageMetadata(): Metadata {
+  return {
+    title: "Privacy Policy — Burstchester",
+    description:
+      "How Burstchester collects, uses, and protects your information when you use the dataset hub.",
+  };
+}
+
 export interface DatasetJsonLd {
   readonly "@context": "https://schema.org";
   readonly "@type": "Dataset";

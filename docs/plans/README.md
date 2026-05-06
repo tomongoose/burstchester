@@ -271,7 +271,9 @@ burstchester/
 
 ---
 
-### C2. `landing-and-onboarding` (대부분 콘텐츠 작업, TDD 최소)
+### C2. `landing-and-onboarding` ✅ 완료
+> 상세 plan: [`landing-and-onboarding-plan.md`](./landing-and-onboarding-plan.md), feature 문서: [`../features/frontend/landing-and-onboarding.md`](../features/frontend/landing-and-onboarding.md)
+
 랜딩 페이지 + Colab 노트북 + GIF.
 
 **스콥**:
