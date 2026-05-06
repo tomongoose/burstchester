@@ -9,7 +9,9 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test:unit": "npm run build && node --test test/*.test.cjs",
+    "test:vitest": "vitest run",
+    "test": "npm run test:unit && npm run test:vitest",
     "test:watch": "vitest",
     "test:rules": "firebase emulators:exec --only firestore --project burstchester-rules-test \"vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start"

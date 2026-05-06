@@ -2,8 +2,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users: 본인만 자기 프로필 쓰기. 누구나 공개 프로필 읽기.
     match /users/{uid} {
       allow read: if true;
       allow create: if request.auth != null
@@ -19,7 +17,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Datasets: active만 공개 read. 카운터·집계 필드는 클라이언트 직접 변경 불가.
     match /datasets/{id} {
       allow read: if resource.data.status == "active"
                   || (request.auth != null && request.auth.uid == resource.data.ownerUid);
@@ -55,7 +52,16 @@ service cloud.firestore {
       }
     }
 
-    // Tags: 읽기 공개. 쓰기는 Cloud Function만 (admin SDK는 Rules 우회).
+    match /models/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.huggingFaceUrl is string
+                    && request.resource.data.huggingFaceUrl.size() > 0;
+      allow update, delete: if request.auth != null
+                            && request.auth.uid == resource.data.ownerUid;
+    }
+
     match /tags/{name} {
       allow read: if true;
       allow write: if false;
