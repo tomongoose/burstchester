@@ -387,7 +387,7 @@ DatasetRecord/UserProfileRecord 등 DTO는 불변. 상태 변경은 새 record �
 |-------|------|--------|------|----------|
 | (B1 이월) Phase 1 | `obj-extract-value-object` (UserProfile 내 Email/PhotoURL/DisplayName 추가 추출) | LOW | 검증 반복 0회 — Forces 미충족 | 트리거: B2/B4에서 검증 반복 발생 시 |
 | (B1 이월) Phase 4 | `svc-constructor-inject` (frontend `auth.ts` 모듈 함수의 getDb/getFirebaseAuth) | HIGH | thin wrapper로 분류 | AuthService 클래스 도입 검토 — 별도 plan 가능 |
-| 본 plan 외 | `svc-constructor-inject` (backend `index.ts`의 모듈 톱레벨 db/storage 정적 호출) | CRITICAL | Cloud Function 진입점 thin wrapper, 별도 plan(`backend-handler-di`)으로 분리 | factory 패턴 적용 시 deps 주입 — 별도 plan |
+| 본 plan 외 | `svc-constructor-inject` (backend `index.ts`의 모듈 톱레벨 db/storage 정적 호출) | CRITICAL | Cloud Function 진입점 thin wrapper, 별도 plan(`backend-handler-di`)으로 분리 | ✅ **resolved** (`backend-handler-di-plan.md` 2026-05-05 완료 — handler factory + lazy `buildDefaultHandlerDeps`로 모듈 톱레벨 부수효과 제거) |
 | 본 plan 외 | `vitest 단일화` (Node native test → vitest 마이그레이션) | MEDIUM | 350줄 7파일 수동 변환 — 별도 plan | `test-runner-unification` plan |
 
 ---
