@@ -188,7 +188,9 @@ burstchester/
 
 ---
 
-### B4. `dataset-search-browse`
+### B4. `dataset-search-browse` ✅ 완료
+> 상세 plan: [`dataset-search-browse-plan.md`](./dataset-search-browse-plan.md), feature 문서: [`../features/dataset/search-browse.md`](../features/dataset/search-browse.md)
+
 데이터셋 검색 / 카테고리 / 상세 페이지.
 
 **스콥**:
