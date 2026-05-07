@@ -27,6 +27,17 @@ export function buildTrainingManifest(input) {
   };
 }
 
+export function buildGemma4E2BFullManifest(input) {
+  return buildTrainingManifest({
+    ...input,
+    modelRepo: "google/gemma-4-E2B",
+    trainingMethod: "full",
+    learningRate: input.learningRate ?? 0.00005,
+    gradientAccumulationSteps: input.gradientAccumulationSteps ?? 8,
+    perDeviceTrainBatchSize: input.perDeviceTrainBatchSize ?? 1,
+  });
+}
+
 export function buildTrainingCommand({ pythonBin, scriptPath, configPath }) {
   return [pythonBin, scriptPath, "--config", configPath];
 }
@@ -71,4 +82,8 @@ export async function runTraining({
 
 export function defaultTrainerScriptPath() {
   return fileURLToPath(new URL("../python/train.py", import.meta.url));
+}
+
+export function defaultGemma4FullTrainerScriptPath() {
+  return fileURLToPath(new URL("../python/train_gemma4_e2b_full.py", import.meta.url));
 }
