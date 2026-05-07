@@ -7,9 +7,15 @@ const MAX_VISIBLE_TAGS = 3;
 
 interface DatasetCardProps {
   readonly summary: DatasetSummary;
+  readonly selected: boolean;
+  readonly onToggleSelect: (datasetId: string) => void;
 }
 
-export function DatasetCard({ summary }: DatasetCardProps): JSX.Element {
+export function DatasetCard({
+  summary,
+  selected,
+  onToggleSelect,
+}: DatasetCardProps): JSX.Element {
   const visibleTags = summary.tags.slice(0, MAX_VISIBLE_TAGS);
   return (
     <article className="card-hover-glow group flex h-full flex-col overflow-hidden border border-white/10 bg-surface-container">
@@ -18,6 +24,20 @@ export function DatasetCard({ summary }: DatasetCardProps): JSX.Element {
         <span className="absolute bottom-2 left-md font-label text-label uppercase tracking-[0.22em] text-on-surface-variant">
           {summary.size.category}
         </span>
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label={`${selected ? "Remove" : "Add"} ${summary.title}`}
+          onClick={() => onToggleSelect(summary.id)}
+          className={[
+            "absolute right-3 top-3 inline-flex items-center rounded-full border px-3 py-1 font-label text-[10px] uppercase tracking-[0.2em]",
+            selected
+              ? "border-primary bg-primary text-on-primary"
+              : "border-white/20 bg-black/20 text-on-surface",
+          ].join(" ")}
+        >
+          {selected ? "Selected" : "Add"}
+        </button>
       </div>
       <Link
         href={buildDatasetDetailHref(summary.id)}

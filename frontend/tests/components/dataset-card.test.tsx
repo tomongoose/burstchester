@@ -18,7 +18,13 @@ const baseRecord = {
 describe("DatasetCard", () => {
   it("renders title, owner name and dataset size category label", () => {
     const summary = buildDatasetSummary(baseRecord);
-    render(<DatasetCard summary={summary} />);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("Korean Legal Q&A")).toBeInTheDocument();
     expect(screen.getByText(/Alice/)).toBeInTheDocument();
@@ -27,7 +33,13 @@ describe("DatasetCard", () => {
 
   it("renders at most 3 tag chips even when more tags exist", () => {
     const summary = buildDatasetSummary(baseRecord);
-    render(<DatasetCard summary={summary} />);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
 
     const chips = screen.getAllByTestId("tag-chip");
     expect(chips).toHaveLength(3);
@@ -35,7 +47,13 @@ describe("DatasetCard", () => {
 
   it("renders like and download counts", () => {
     const summary = buildDatasetSummary(baseRecord);
-    render(<DatasetCard summary={summary} />);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
 
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("47")).toBeInTheDocument();
@@ -43,11 +61,32 @@ describe("DatasetCard", () => {
 
   it("links to the static dataset detail route using a query param and anchor", () => {
     const summary = buildDatasetSummary(baseRecord);
-    render(<DatasetCard summary={summary} />);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
 
     expect(screen.getByRole("link", { name: /Korean Legal Q&A/i })).toHaveAttribute(
       "href",
       "/datasets?dataset=ds-1#dataset-detail",
     );
+  });
+
+  it("renders a dataset selection toggle", () => {
+    const summary = buildDatasetSummary(baseRecord);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /add korean legal q&a/i }),
+    ).toBeInTheDocument();
   });
 });
