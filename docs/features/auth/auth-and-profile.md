@@ -54,19 +54,29 @@ cleanup: 로그아웃하거나 페이지 언마운트 시 `unsubDoc?.()` + `unsu
   - `Object.freeze()` 적용 — 반환 객체 변경 불가
   - 내부에서 `UserProfile.create()`로 도메인 검증 위임
 
-### 인증 orchestrator (frontend/lib/auth.ts)
-- **`signInWithGoogle()`** — popup 로그인 + `ensureUserProfile` 호출
-- **`ensureUserProfile(user, db, now)`** — 멱등적 프로필 doc 생성
-  - 명시적 인자: `db`(Firestore), `now`(Date) — 단위 테스트 가능
-  - 사전 조건: `user.uid` 필수
-- **`signOut()`** — Firebase signOut 위임
+### 인증 서비스 (frontend/lib/auth.ts) — `AuthService` 클래스 (svc-constructor-inject 적용)
+
+**`AuthService`** — 생성자 주입 기반 클래스.
+- 생성자 인자(`AuthServiceDeps`): `auth`, `db`, `clock`, `signInWithPopup`, `firebaseSignOut`, `getDoc`, `setDoc`, `doc`, `createGoogleProvider` (모두 `readonly`)
+- 메서드:
+  - **`signInWithGoogle(): Promise<void>`** — popup 로그인 + `ensureUserProfile` 위임 (CQS 분리: 명령만, 반환 X)
+  - **`ensureUserProfile(user): Promise<void>`** — 멱등적 프로필 doc 생성 (이미 존재 시 setDoc 스킵). 사전 조건: `user.uid` 필수
+  - **`signOut(): Promise<void>`** — Firebase signOut 위임
+
+**Factory**:
+- **`buildDefaultAuthService()`** — lazy `getFirebaseAuth()` + `getDb()` + `() => new Date()` 주입
+- **`getDefaultAuthService()`** — module-level 캐시 (LoginButton 등이 사용)
+
+**ODP**: `svc-constructor-inject` (모든 의존성 생성자), `svc-explicit-deps` (Date.now, signInWithPopup 등 함수 주입), `mut-immutable-first` (readonly deps), `arch-compose-not-inherit` (함수 타입 어댑터)
+
+> 이전 module-level 함수(`signInWithGoogle`/`signOut`/`ensureUserProfile`)는 삭제됨 (`frontend-auth-service` plan).
 
 ### UI
 - **`ProfileCard`** (frontend/components/profile/ProfileCard.tsx) — 순수 presentational
   - `displayName`, `email` 텍스트
   - `uploadCount`/`downloadCount` 텍스트
   - photoURL이 null이면 `displayName.charAt(0)` 이니셜 fallback (`data-testid="avatar-fallback"`)
-- **`LoginButton`** (frontend/components/auth/LoginButton.tsx) — `signInWithGoogle` 호출 래퍼
+- **`LoginButton`** (frontend/components/auth/LoginButton.tsx) — `getDefaultAuthService().signInWithGoogle()` 호출. 테스트용 `authService` prop 옵션 (DI)
 - **`/login` page** — LoginButton 노출
 - **`/profile` page** — onAuthStateChanged + onSnapshot 구독 → ProfileCard 렌더
 
@@ -123,15 +133,18 @@ match /users/{uid} {
 | Frontend Domain | `frontend/tests/domain/user.test.ts` | 4 |
 | Frontend Builder | `frontend/tests/users/seed.test.ts` | 4 |
 | Frontend UI | `frontend/tests/components/profile-card.test.tsx` | 3 |
+| Frontend Service | `frontend/tests/auth/auth-service.test.ts` | 5 |
+| Frontend UI | `frontend/tests/auth/login-button.test.tsx` | 1 |
 | Backend Rules | `backend/tests/rules/users.rules.test.ts` | 7 |
-| **합계** | | **18** |
+| **합계** | | **24** |
 
 단위 테스트 제외 (thin wrapper):
-- `LoginButton`, `app/login/page.tsx`, `app/profile/page.tsx` — 통합 체크 + 수동 스모크
-- `signInWithGoogle` — Firebase SDK 직접 호출
+- `app/login/page.tsx`, `app/profile/page.tsx` — 통합 체크 + 수동 스모크
+- `buildDefaultAuthService` factory — Firebase SDK 호출 자체가 행위 (mock tautology)
 
 ---
 
 ## 변경 이력
 
 - 2026-05-05 — 신규 생성 (B1 MVP)
+- 2026-05-06 — `AuthService` 클래스 도입 (`frontend-auth-service` plan): module-level 함수 → 생성자 주입 클래스 + lazy default factory. `signInWithGoogle()` 반환 타입 `Promise<FirebaseUser>` → `Promise<void>` (CQS 분리). LoginButton에 `authService` DI prop 추가. 테스트 +6 cases (auth-service 5 + login-button 1).

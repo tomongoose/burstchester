@@ -317,6 +317,7 @@ tags:
 | Phase | 규칙 | 심각도 | 사유 | 후속 조치 |
 |-------|------|--------|------|----------|
 | Phase 1 | `obj-extract-value-object` | CRITICAL (Critic 평가) → LOW (Builder 재평가) | 규칙 본문은 "검증 로직이 *여러 곳에서 반복되면*" 추출을 요구하지만 현재 검증은 `UserProfile.create` 한 곳에만 존재. Critic은 "향후 반복 가능성"을 근거로 했으나 Plan Forces Analysis는 "Force 없음 — 단순 유지"로 합의됨. 3개 추가 VO(Email/HttpsURL/DisplayName) 도입은 25줄짜리 파일에 대해 over-engineering. | **트리거**: Phase 2 `buildInitialProfileDoc` 또는 Phase 4 `ProfileCard`에서 검증 반복이 관측되거나, B2 데이터셋 owner 메타에서 동일 검증 발생 시 즉시 추출. Plan 4-3 Pattern Signal Detection으로 재평가. |
+| Phase 4 | `svc-constructor-inject` (frontend `auth.ts` module-level 함수) | HIGH | thin wrapper로 분류하여 단위 테스트 제외했으나 module-level 함수가 `getDb()`/`getFirebaseAuth()` 직접 호출 = svc-constructor-inject 위반. | ✅ **resolved** (`frontend-auth-service-plan.md` 2026-05-06 완료 — `AuthService` 클래스 + lazy `buildDefaultAuthService` factory + LoginButton DI prop. `signInWithGoogle()` CQS 분리 (`Promise<void>`). 테스트 +6 cases) |
 
 ---
 

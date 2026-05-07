@@ -292,7 +292,7 @@ tags:
 | Plan | 규칙 | 심각도 | 사유 | 후속 |
 |------|------|--------|------|------|
 | auth-and-profile | `obj-extract-value-object` (UserProfile 추가 추출) | LOW | 검증 반복 부족 | 트리거 시 |
-| auth-and-profile | `svc-constructor-inject` (frontend `auth.ts`) | HIGH | thin wrapper 분류 | 별도 plan |
+| auth-and-profile | `svc-constructor-inject` (frontend `auth.ts`) | HIGH | thin wrapper 분류 | ✅ **resolved** (`frontend-auth-service-plan.md` 2026-05-06 완료 — `AuthService` 클래스 + lazy factory + LoginButton DI) |
 | backend-hardening | Node native → vitest | MEDIUM | 본 plan으로 분리 | ✅ **resolved** (Phase 1-3 완료 2026-05-06) |
 | dataset-search-browse | `obj-extract-value-object` (SearchFilter validation) | LOW | 1곳만 | 재평가 |
 
@@ -312,6 +312,6 @@ tags:
 없음 — 본 plan은 단순 마이그레이션, 새 위반 발생 가능성 낮음.
 
 ### 후속 plan 후보
-- frontend `auth.ts` `svc-constructor-inject` (HIGH 부채)
+- ~~frontend `auth.ts` `svc-constructor-inject` (HIGH 부채)~~ — **resolved** (`frontend-auth-service-plan.md`)
 - D3 model-registry 역참조 인덱스
 - (외부 대기) D0 capture-ingest spec 도착 시
