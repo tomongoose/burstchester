@@ -138,7 +138,9 @@ burstchester/
 
 ---
 
-### B2. `dataset-upload-validate`
+### B2. `dataset-upload-validate` ✅ 완료 (`backend-hardening` plan으로 보강)
+> 팀원 commit 5c6a0d3에서 기능 구현됨. `backend-hardening` plan에서 ODP 보강 + 테스트 갭 메움. feature 문서: [`../features/dataset/upload-validate.md`](../features/dataset/upload-validate.md)
+
 업로드된 JSONL 파일의 검증 파이프라인. **저장은 다음 plan**.
 
 **스콥**:
@@ -186,7 +188,9 @@ burstchester/
 
 ---
 
-### B4. `dataset-search-browse`
+### B4. `dataset-search-browse` ✅ 완료
+> 상세 plan: [`dataset-search-browse-plan.md`](./dataset-search-browse-plan.md), feature 문서: [`../features/dataset/search-browse.md`](../features/dataset/search-browse.md)
+
 데이터셋 검색 / 카테고리 / 상세 페이지.
 
 **스콥**:
@@ -206,7 +210,9 @@ burstchester/
 
 ---
 
-### B5. `dataset-download-zip`
+### B5. `dataset-download-zip` ✅ 완료 (frontend wiring 포함)
+> Backend hardening: [`backend-hardening-plan.md`](./backend-hardening-plan.md). Frontend wiring: [`download-button-wiring-plan.md`](./download-button-wiring-plan.md). Feature 문서: [`../features/dataset/download-zip.md`](../features/dataset/download-zip.md)
+
 다운로드 시점에 zip 패키징 + Modelfile 템플릿 생성.
 
 **스콥**:
@@ -246,7 +252,9 @@ burstchester/
 
 ## Phase C — MVP Polish
 
-### C1. `seed-import-tool`
+### C1. `seed-import-tool` ✅ 완료
+> 상세 plan: [`seed-import-tool-plan.md`](./seed-import-tool-plan.md), feature 문서: [`../features/admin/seed-import.md`](../features/admin/seed-import.md)
+
 운영자가 큐레이션한 시드 데이터셋 30개를 일괄 import하는 admin CLI/script.
 
 **스콥**:
@@ -263,7 +271,9 @@ burstchester/
 
 ---
 
-### C2. `landing-and-onboarding` (대부분 콘텐츠 작업, TDD 최소)
+### C2. `landing-and-onboarding` ✅ 완료
+> 상세 plan: [`landing-and-onboarding-plan.md`](./landing-and-onboarding-plan.md), feature 문서: [`../features/frontend/landing-and-onboarding.md`](../features/frontend/landing-and-onboarding.md)
+
 랜딩 페이지 + Colab 노트북 + GIF.
 
 **스콥**:

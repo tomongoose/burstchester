@@ -1,33 +1,31 @@
-import { randomUUID } from "node:crypto";
-
 import { Timestamp } from "firebase-admin/firestore";
 
 export interface ModelEvalReport {
-  metric: string;
-  score: number;
-  dataset?: string;
+  readonly metric: string;
+  readonly score: number;
+  readonly dataset?: string;
 }
 
 export interface ModelRecord {
-  id: string;
-  ownerUid: string;
-  baseModel: string;
-  trainingDatasets: string[];
-  trainingMethod: "lora" | "qlora" | "full";
-  evalReports: ModelEvalReport[];
-  ollamaPullUrl: string | null;
-  huggingFaceUrl: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  readonly id: string;
+  readonly ownerUid: string;
+  readonly baseModel: string;
+  readonly trainingDatasets: readonly string[];
+  readonly trainingMethod: "lora" | "qlora" | "full";
+  readonly evalReports: readonly ModelEvalReport[];
+  readonly ollamaPullUrl: string | null;
+  readonly huggingFaceUrl: string;
+  readonly createdAt: Timestamp;
+  readonly updatedAt: Timestamp;
 }
 
 export interface ModelRegistrationInput {
-  ownerUid: string;
-  huggingFaceUrl: string;
-  baseModel?: string;
-  trainingDatasets?: string[];
-  trainingMethod?: string;
-  ollamaPullUrl?: string | null;
+  readonly ownerUid: string;
+  readonly huggingFaceUrl: string;
+  readonly baseModel?: string;
+  readonly trainingDatasets?: readonly string[];
+  readonly trainingMethod?: string;
+  readonly ollamaPullUrl?: string | null;
 }
 
 export function validateHuggingFaceDownloadUrl(url: string): { ok: true } | { ok: false; reason: string } {
@@ -63,7 +61,8 @@ export function validateHuggingFaceDownloadUrl(url: string): { ok: true } | { ok
 
 export function buildModelRecord(
   input: ModelRegistrationInput,
-  idFactory: () => string = () => `model-${randomUUID()}`,
+  idFactory: () => string,
+  now: Timestamp,
 ): ModelRecord {
   const huggingFaceUrl = input.huggingFaceUrl.trim();
   const urlValidation = validateHuggingFaceDownloadUrl(huggingFaceUrl);
@@ -76,8 +75,7 @@ export function buildModelRecord(
     throw new Error("ownerUid is required.");
   }
 
-  const now = Timestamp.now();
-  return {
+  return Object.freeze({
     id: idFactory(),
     ownerUid,
     baseModel: input.baseModel?.trim() || "unknown",
@@ -88,7 +86,7 @@ export function buildModelRecord(
     huggingFaceUrl,
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 function normalizeTrainingMethod(method?: string): "lora" | "qlora" | "full" {

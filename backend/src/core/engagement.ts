@@ -1,9 +1,11 @@
+import { tryTransitionStatus, type DatasetStatus } from "./dataset-status";
+
 export interface DatasetCounterState {
-  ownerUid: string;
-  likeCount?: number;
-  reportCount?: number;
-  downloadCount?: number;
-  status?: string;
+  readonly ownerUid: string;
+  readonly likeCount?: number;
+  readonly reportCount?: number;
+  readonly downloadCount?: number;
+  readonly status?: DatasetStatus;
 }
 
 export function applyLikeWrite(
@@ -12,15 +14,15 @@ export function applyLikeWrite(
   afterExists: boolean,
 ) {
   const delta = existenceDelta(beforeExists, afterExists);
-  return {
-    dataset: {
+  return Object.freeze({
+    dataset: Object.freeze({
       likeCount: Math.max(0, (dataset.likeCount ?? 0) + delta),
-    },
-    owner: {
+    }),
+    owner: Object.freeze({
       uid: dataset.ownerUid,
       reputationDelta: delta,
-    },
-  };
+    }),
+  });
 }
 
 export function applyReportWrite(
@@ -30,28 +32,30 @@ export function applyReportWrite(
 ) {
   const delta = existenceDelta(beforeExists, afterExists);
   const reportCount = Math.max(0, (dataset.reportCount ?? 0) + delta);
-  return {
-    dataset: {
+  const currentStatus: DatasetStatus = dataset.status ?? "active";
+  const status = reportCount >= 3 ? tryTransitionStatus(currentStatus, "flagged") : currentStatus;
+  return Object.freeze({
+    dataset: Object.freeze({
       reportCount,
-      status: reportCount >= 3 ? "flagged" : dataset.status ?? "active",
-    },
-    owner: {
+      status,
+    }),
+    owner: Object.freeze({
       uid: dataset.ownerUid,
       reputationDelta: delta * -5,
-    },
-  };
+    }),
+  });
 }
 
 export function applyDownloadStats(dataset: DatasetCounterState) {
-  return {
-    dataset: {
+  return Object.freeze({
+    dataset: Object.freeze({
       downloadCount: (dataset.downloadCount ?? 0) + 1,
-    },
-    owner: {
+    }),
+    owner: Object.freeze({
       uid: dataset.ownerUid,
       downloadCountDelta: 1,
-    },
-  };
+    }),
+  });
 }
 
 function existenceDelta(beforeExists: boolean, afterExists: boolean): number {

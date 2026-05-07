@@ -2,9 +2,11 @@ import { createHash } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
 
 import { evaluateSourceModel, type SourceModelEvaluation } from "./source-models";
+import { type DatasetStatus } from "./dataset-status";
+
+export { type DatasetStatus };
 
 export type DatasetFormat = "openai-messages" | "sharegpt" | "alpaca";
-export type DatasetStatus = "active" | "pending_review" | "rejected" | "flagged" | "removed";
 export type TaskType = "instruction" | "chat" | "completion" | "tool-use";
 
 interface Message {
@@ -34,65 +36,65 @@ export interface ValidationResult {
 }
 
 export interface UploadMetadataInput {
-  datasetId?: string;
-  ownerUid?: string;
-  ownerName?: string;
-  title?: string;
-  description?: string;
-  tags?: string;
-  baseModelHint?: string;
-  taskType?: string;
-  language?: string;
-  license?: string;
-  sourceModel?: string;
-  sourceConfirmed?: string;
-  outputModelId?: string;
-  format?: string;
+  readonly datasetId?: string;
+  readonly ownerUid?: string;
+  readonly ownerName?: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly tags?: string;
+  readonly baseModelHint?: string;
+  readonly taskType?: string;
+  readonly language?: string;
+  readonly license?: string;
+  readonly sourceModel?: string;
+  readonly sourceConfirmed?: string;
+  readonly outputModelId?: string;
+  readonly format?: string;
 }
 
 export interface StorageObjectInput {
-  name?: string | null;
-  bucket: string;
-  contentType?: string | null;
-  size?: number | string | null;
-  metadata?: UploadMetadataInput;
+  readonly name?: string | null;
+  readonly bucket: string;
+  readonly contentType?: string | null;
+  readonly size?: number | string | null;
+  readonly metadata?: UploadMetadataInput;
 }
 
 export interface DatasetRecord {
-  id: string;
-  ownerUid: string;
-  ownerName: string;
-  title: string;
-  description: string;
-  tags: string[];
-  baseModelHint: string;
-  taskType: TaskType;
-  format: "openai-messages";
-  language: string;
-  license: string;
-  rowCount: number;
-  byteSize: number;
-  avgUserTokens: number;
-  avgAssistantTokens: number;
-  storagePath: string;
-  normalizedStoragePath: string | null;
-  zipPath: string | null;
-  sourceModel: string;
-  sourceModelLicense: SourceModelEvaluation["license"];
-  sourceConfirmed: boolean;
-  outputModelId: string | null;
-  parentDatasets: string[];
-  samplingMethod: "manual-curate" | "llm-output" | "human-write" | "mixed" | null;
-  capabilityTags: string[];
-  sampleHashesMerkleRoot: string;
-  likeCount: number;
-  downloadCount: number;
-  reportCount: number;
-  searchKeywords: string[];
-  status: DatasetStatus;
-  rejectReason?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  readonly id: string;
+  readonly ownerUid: string;
+  readonly ownerName: string;
+  readonly title: string;
+  readonly description: string;
+  readonly tags: readonly string[];
+  readonly baseModelHint: string;
+  readonly taskType: TaskType;
+  readonly format: "openai-messages";
+  readonly language: string;
+  readonly license: string;
+  readonly rowCount: number;
+  readonly byteSize: number;
+  readonly avgUserTokens: number;
+  readonly avgAssistantTokens: number;
+  readonly storagePath: string;
+  readonly normalizedStoragePath: string | null;
+  readonly zipPath: string | null;
+  readonly sourceModel: string;
+  readonly sourceModelLicense: SourceModelEvaluation["license"];
+  readonly sourceConfirmed: boolean;
+  readonly outputModelId: string | null;
+  readonly parentDatasets: readonly string[];
+  readonly samplingMethod: "manual-curate" | "llm-output" | "human-write" | "mixed" | null;
+  readonly capabilityTags: readonly string[];
+  readonly sampleHashesMerkleRoot: string;
+  readonly likeCount: number;
+  readonly downloadCount: number;
+  readonly reportCount: number;
+  readonly searchKeywords: readonly string[];
+  readonly status: DatasetStatus;
+  readonly rejectReason?: string;
+  readonly createdAt: Timestamp;
+  readonly updatedAt: Timestamp;
 }
 
 export interface DatasetUploadDeps {
@@ -191,9 +193,29 @@ export function validateDatasetUpload(input: {
   };
 }
 
+export interface UploadPreconditionInput {
+  readonly name: string;
+  readonly size: number;
+  readonly sourceConfirmed: boolean;
+}
+
+export function checkUploadPreconditions(input: UploadPreconditionInput): string | null {
+  if (!input.name.endsWith(".jsonl")) {
+    return "Only .jsonl uploads are allowed.";
+  }
+  if (input.size > 100 * 1024 * 1024) {
+    return "Upload exceeds 100MB limit.";
+  }
+  if (!input.sourceConfirmed) {
+    return "Source confirmation is required.";
+  }
+  return null;
+}
+
 export async function processDatasetUpload(
   object: StorageObjectInput,
   deps: DatasetUploadDeps,
+  now: Timestamp,
 ): Promise<DatasetRecord> {
   const name = object.name?.trim() ?? "";
   const metadata = object.metadata ?? {};
@@ -217,34 +239,16 @@ export async function processDatasetUpload(
     sourceConfirmed,
     outputModelId: metadata.outputModelId?.trim() || null,
     storagePath: `gs://${object.bucket}/${name}`,
+    now,
   });
 
-  if (!name.endsWith(".jsonl")) {
-    const rejected = {
+  const preconditionError = checkUploadPreconditions({ name, size, sourceConfirmed });
+  if (preconditionError) {
+    const rejected: DatasetRecord = Object.freeze({
       ...baseRecord,
       status: "rejected" as const,
-      rejectReason: "Only .jsonl uploads are allowed.",
-    };
-    await deps.upsertDataset(rejected);
-    return rejected;
-  }
-
-  if (size > 100 * 1024 * 1024) {
-    const rejected = {
-      ...baseRecord,
-      status: "rejected" as const,
-      rejectReason: "Upload exceeds 100MB limit.",
-    };
-    await deps.upsertDataset(rejected);
-    return rejected;
-  }
-
-  if (!sourceConfirmed) {
-    const rejected = {
-      ...baseRecord,
-      status: "rejected" as const,
-      rejectReason: "Source confirmation is required.",
-    };
+      rejectReason: preconditionError,
+    });
     await deps.upsertDataset(rejected);
     return rejected;
   }
@@ -258,7 +262,7 @@ export async function processDatasetUpload(
   const normalizedStoragePath =
     validation.status === "rejected" ? null : `normalized/${datasetId}/dataset.jsonl`;
 
-  const record: DatasetRecord = {
+  const record: DatasetRecord = Object.freeze({
     ...baseRecord,
     format: validation.normalizedFormat,
     rowCount: validation.rowCount,
@@ -278,7 +282,7 @@ export async function processDatasetUpload(
     status: validation.status,
     rejectReason: validation.rejectReason,
     samplingMethod: baseRecord.sourceModel === "human" ? "human-write" : "llm-output",
-  };
+  });
 
   if (validation.status !== "rejected" && normalizedStoragePath) {
     await deps.saveNormalizedText(normalizedStoragePath, validation.normalizedJsonl, object.bucket);
@@ -304,8 +308,9 @@ function createBaseDatasetRecord(input: {
   sourceConfirmed: boolean;
   outputModelId: string | null;
   storagePath: string;
+  now: Timestamp;
 }): DatasetRecord {
-  const now = Timestamp.now();
+  const { now } = input;
   return {
     id: input.datasetId,
     ownerUid: input.ownerUid,
@@ -484,7 +489,7 @@ function estimateTokens(content: string): number {
   return Math.max(1, Math.ceil(content.length / 4));
 }
 
-function findPiiFindings(content: string): string[] {
+export function findPiiFindings(content: string): string[] {
   return PII_PATTERNS.filter(({ pattern }) => pattern.test(content)).map(({ label }) => label);
 }
 
@@ -540,7 +545,7 @@ function parseTags(rawTags?: string): string[] {
 function buildSearchKeywords(
   title: string,
   description: string,
-  tags: string[],
+  tags: readonly string[],
   baseModelHint: string,
   language: string,
 ): string[] {
