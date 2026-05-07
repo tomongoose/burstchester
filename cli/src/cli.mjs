@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
+import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs, requiredFlag } from "./lib/args.mjs";
@@ -21,6 +22,13 @@ import {
 } from "./lib/firebase-auth.mjs";
 import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
 import { upsertCliProfile } from "./lib/profile.mjs";
+import {
+  appendProxyJsonlSample,
+  buildProxyLogSample,
+  buildProxyUploadMetadata,
+  isStreamingProxyRequest,
+  normalizeProxyRequestBody,
+} from "./lib/proxy-log.mjs";
 import {
   addDatasetId,
   clearDatasetIds,
@@ -58,6 +66,12 @@ async function main(argv) {
       return;
     case "upload-test-dataset":
       await handleUploadTestDataset(flags);
+      return;
+    case "proxy-record":
+      await handleProxyRecord(flags);
+      return;
+    case "upload-proxy-log":
+      await handleUploadProxyLog(flags);
       return;
     case "train":
       await handleTrain(flags);
@@ -326,26 +340,7 @@ async function handleDownloadModel(flags) {
 }
 
 async function handleUploadTestDataset(flags) {
-  let session = await loadSession();
-  if (!session) {
-    throw new Error("No CLI session found. Run `auth profile --display-name ...` first.");
-  }
-
-  const apiKey = resolveConfig(
-    flags["api-key"],
-    process.env.BURSTCHESTER_FIREBASE_API_KEY,
-    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
-  );
-  if (isSessionExpired(session)) {
-    session = {
-      ...session,
-      ...await refreshFirebaseSession({
-        apiKey,
-        refreshToken: session.refreshToken,
-      }),
-    };
-    await saveSession(session);
-  }
+  const session = await loadActiveSessionForBackendWrite(flags);
 
   const endpointUrl = resolveConfig(
     flags["upload-url"],
@@ -378,6 +373,95 @@ async function handleUploadTestDataset(flags) {
   });
 
   process.stdout.write(`${JSON.stringify({ ok: true, dataset }, null, 2)}\n`);
+}
+
+async function handleProxyRecord(flags) {
+  const targetUrl = requiredFlag(flags, "target-url");
+  const host = typeof flags.host === "string" && flags.host.trim()
+    ? flags.host.trim()
+    : "127.0.0.1";
+  const port = readNumberFlag(flags.port, 5051, "port");
+  const logFile = resolve(
+    String(flags["log-file"] || join(ROOT_DIR, "artifacts", "proxy", "captured.jsonl")),
+  );
+
+  const server = createServer(async (request, response) => {
+    try {
+      await handleProxyRequest({ targetUrl, logFile, request, response });
+    } catch (error) {
+      response.statusCode = 500;
+      response.setHeader("content-type", "application/json");
+      response.end(
+        JSON.stringify({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  });
+
+  await new Promise((resolveServer, rejectServer) => {
+    server.once("error", rejectServer);
+    server.listen(port, host, () => {
+      server.off("error", rejectServer);
+      resolveServer();
+    });
+  });
+
+  process.stdout.write(
+    `${JSON.stringify({
+      ok: true,
+      mode: "proxy-record",
+      host,
+      port,
+      targetUrl,
+      logFile,
+    }, null, 2)}\n`,
+  );
+}
+
+async function handleUploadProxyLog(flags) {
+  const session = await loadActiveSessionForBackendWrite(flags);
+  const endpointUrl = resolveConfig(
+    flags["upload-url"],
+    process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
+    BURSTCHESTER_DEFAULTS.debugUploadUrl,
+  );
+  const filePath = requiredFlag(flags, "file");
+  const content = await readFile(resolve(filePath), "utf8");
+  const sourceModel = requiredFlag(flags, "source-model");
+  const filename = typeof flags.filename === "string" && flags.filename.trim()
+    ? flags.filename.trim()
+    : basename(filePath);
+  const metadata = buildProxyUploadMetadata({
+    title:
+      typeof flags.title === "string" && flags.title.trim()
+        ? flags.title.trim()
+        : `${sourceModel} proxy capture`,
+    description: typeof flags.description === "string" ? flags.description : undefined,
+    tags: typeof flags.tags === "string" ? flags.tags : undefined,
+    taskType: typeof flags["task-type"] === "string" ? flags["task-type"] : undefined,
+    sourceModel,
+    baseModelHint: typeof flags["base-model-hint"] === "string" ? flags["base-model-hint"] : undefined,
+  });
+
+  const dataset = await uploadDebugDataset({
+    endpointUrl,
+    idToken: session.idToken,
+    filename,
+    content,
+    metadata: {
+      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
+      language: typeof flags.language === "string" ? flags.language : undefined,
+      license: typeof flags.license === "string" ? flags.license : undefined,
+      outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
+      ...metadata,
+    },
+  });
+
+  process.stdout.write(
+    `${JSON.stringify({ ok: true, file: resolve(filePath), dataset }, null, 2)}\n`,
+  );
 }
 
 async function handleTrain(flags) {
@@ -561,7 +645,9 @@ function printUsage() {
       "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
       "  download-model --url <hf-url> [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
+      "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
       "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
+      "  upload-proxy-log --file <path> --source-model <model> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
       "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
       "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--workspace <dir>] [--preflight-only]",
       "",
@@ -646,4 +732,154 @@ function resolveTrainingDatasetIds(flags, session) {
   }
 
   throw new Error("No dataset ids available. Pass --dataset-id or add ids with `dataset-list add`.");
+}
+
+async function loadActiveSessionForBackendWrite(flags) {
+  let session = await loadSession();
+  if (!session) {
+    throw new Error("No CLI session found. Run `auth profile --display-name ...` first.");
+  }
+
+  const apiKey = resolveConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+  if (isSessionExpired(session)) {
+    session = {
+      ...session,
+      ...await refreshFirebaseSession({
+        apiKey,
+        refreshToken: session.refreshToken,
+      }),
+    };
+    await saveSession(session);
+  }
+
+  return session;
+}
+
+async function handleProxyRequest({ targetUrl, logFile, request, response }) {
+  const requestBuffer = await readIncomingRequestBody(request);
+  const pathname = request.url ? new URL(request.url, "http://localhost").pathname : "/";
+  const search = request.url ? new URL(request.url, "http://localhost").search : "";
+  const contentType = String(request.headers["content-type"] || "");
+  const parsedRequestBody = tryParseJsonBody(requestBuffer, contentType);
+
+  if (isStreamingProxyRequest(parsedRequestBody)) {
+    response.statusCode = 400;
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({
+      ok: false,
+      error: "Streaming requests are not supported by proxy-record. Send stream=false.",
+    }));
+    return;
+  }
+
+  const proxiedUrl = new URL(`${pathname}${search}`, ensureTrailingSlash(targetUrl));
+  const normalizedRequestBody = normalizeProxyRequestBody(pathname, parsedRequestBody);
+  const forwardHeaders = filterForwardHeaders(request.headers);
+  let forwardBody = requestBuffer;
+
+  if (normalizedRequestBody !== parsedRequestBody) {
+    forwardBody = Buffer.from(JSON.stringify(normalizedRequestBody));
+    forwardHeaders.set("content-type", "application/json");
+    forwardHeaders.set("content-length", String(forwardBody.byteLength));
+  }
+
+  const upstream = await fetch(proxiedUrl, {
+    method: request.method || "GET",
+    headers: forwardHeaders,
+    body: shouldSendBody(request.method) ? forwardBody : undefined,
+  });
+  const responseBuffer = Buffer.from(await upstream.arrayBuffer());
+  const responseContentType = upstream.headers.get("content-type") || "";
+
+  response.statusCode = upstream.status;
+  upstream.headers.forEach((value, key) => {
+    response.setHeader(key, value);
+  });
+  response.end(responseBuffer);
+
+  if (!upstream.ok) {
+    return;
+  }
+
+  const parsedResponseBody = tryParseJsonBody(responseBuffer, responseContentType);
+  const sample = buildProxyLogSample({
+    pathname,
+    requestBody: normalizedRequestBody,
+    responseBody: parsedResponseBody,
+  });
+  if (!sample) {
+    return;
+  }
+
+  await appendProxyJsonlSample(logFile, sample);
+}
+
+async function readIncomingRequestBody(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+function tryParseJsonBody(buffer, contentType) {
+  if (!String(contentType || "").toLowerCase().includes("application/json")) {
+    return null;
+  }
+
+  const text = buffer.toString("utf8").trim();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function filterForwardHeaders(headers) {
+  const nextHeaders = new Headers();
+  for (const [key, rawValue] of Object.entries(headers)) {
+    if (rawValue === undefined) {
+      continue;
+    }
+    if (key.toLowerCase() === "host") {
+      continue;
+    }
+
+    if (Array.isArray(rawValue)) {
+      nextHeaders.set(key, rawValue.join(", "));
+      continue;
+    }
+
+    nextHeaders.set(key, String(rawValue));
+  }
+  return nextHeaders;
+}
+
+function shouldSendBody(method) {
+  return !["GET", "HEAD"].includes(String(method || "GET").toUpperCase());
+}
+
+function ensureTrailingSlash(url) {
+  return url.endsWith("/") ? url : `${url}/`;
+}
+
+function readNumberFlag(rawValue, defaultValue, flagName) {
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return defaultValue;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid --${flagName}: ${rawValue}`);
+  }
+
+  return parsed;
 }
