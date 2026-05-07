@@ -20,11 +20,15 @@ describe("ProfileCard", () => {
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
   });
 
-  it("renders upload and download counts", () => {
+  it("renders upload, download, and reputation counts", () => {
     render(<ProfileCard profile={ALICE} />);
 
-    expect(screen.getByText(/3.*uploaded/i)).toBeInTheDocument();
-    expect(screen.getByText(/12.*downloaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/uploads/i)).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText(/downloads/i)).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText(/reputation/i)).toBeInTheDocument();
+    expect(screen.getByText("27")).toBeInTheDocument();
   });
 
   it("shows initial fallback (first letter) when photoURL is null", () => {

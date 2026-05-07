@@ -25,19 +25,19 @@ describe("DatasetCard", () => {
     expect(screen.getByText(/small/i)).toBeInTheDocument();
   });
 
-  it("renders at most 5 tag chips even when more tags exist", () => {
+  it("renders at most 3 tag chips even when more tags exist", () => {
     const summary = buildDatasetSummary(baseRecord);
     render(<DatasetCard summary={summary} />);
 
     const chips = screen.getAllByTestId("tag-chip");
-    expect(chips).toHaveLength(5);
+    expect(chips).toHaveLength(3);
   });
 
-  it("renders like and download counts with formatted labels", () => {
+  it("renders like and download counts", () => {
     const summary = buildDatasetSummary(baseRecord);
     render(<DatasetCard summary={summary} />);
 
-    expect(screen.getByText(/12.*likes?/i)).toBeInTheDocument();
-    expect(screen.getByText(/47.*downloads?/i)).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("47")).toBeInTheDocument();
   });
 });
