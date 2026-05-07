@@ -15,6 +15,8 @@ import {
   stripUndefinedDeep,
 } from "./_request-helpers";
 
+export const DEBUG_UPLOAD_STORAGE_PREFIX = "debug-uploads";
+
 export interface DebugUploadDatasetHandlerDeps {
   readonly verifyIdToken: HandlerDeps["auth"]["verifyIdToken"];
   readonly uploadDataset: (input: {
@@ -121,7 +123,7 @@ export async function uploadDebugDatasetRecord(
       : "",
     input.filename,
   );
-  const storagePath = `datasets/${input.ownerUid}/debug/${datasetId}.jsonl`;
+  const storagePath = `${DEBUG_UPLOAD_STORAGE_PREFIX}/${input.ownerUid}/${datasetId}.jsonl`;
   const sourceModel =
     typeof input.metadata.sourceModel === "string" &&
     input.metadata.sourceModel.trim()
