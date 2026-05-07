@@ -1,3 +1,8 @@
+llm/gemma-lora/
+llm/gemma-merged/
+llm/llama.cpp/
+*.gguf
+
 # OS / editor
 .DS_Store
 .idea/

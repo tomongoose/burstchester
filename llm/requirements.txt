@@ -1,0 +1,11 @@
+torch
+transformers 
+peft 
+datasets 
+accelerate 
+bitsandbytes
+
+ipywidgets
+tqdm
+vllm
+sentencepiece
