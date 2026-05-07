@@ -7,59 +7,44 @@ interface SiteNavProps {
 
 export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
   return (
-    <nav className="fixed top-0 inset-x-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30">
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-background/92 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-container-max items-center justify-between px-gutter">
-        <div className="flex items-center gap-md">
+        <div className="flex items-center gap-lg">
           <Link
             href="/"
-            className="flex items-center gap-sm focus-visible:outline-2 focus-visible:outline-primary rounded-md"
+            className="rounded-md text-on-surface focus-visible:outline-2 focus-visible:outline-primary"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-container text-on-primary-container font-h3 text-h3 font-bold">
-              B
-            </span>
-            <span className="font-h3 text-h3 font-bold text-primary tracking-tight">
+            <span className="font-h1 text-[1.35rem] font-semibold tracking-tight text-on-surface">
               Burstchester
             </span>
           </Link>
-          <div className="ml-xl hidden md:flex items-center gap-lg">
+          <div className="hidden items-center gap-lg md:flex">
             <Link
               href="/datasets"
-              className={`font-body text-body-md transition-colors hover:text-primary ${
+              className={`border-b pb-1 font-label text-[11px] uppercase tracking-[0.22em] transition-colors ${
                 active === "datasets"
-                  ? "text-primary border-b-2 border-primary pb-1"
-                  : "text-on-surface-variant"
+                  ? "border-primary-container text-primary-container"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
               }`}
             >
-              Datasets
+              Explore
             </Link>
             <a
               href="https://github.com/tomato-data/burstchester"
               target="_blank"
               rel="noreferrer"
-              className="font-body text-body-md text-on-surface-variant transition-colors hover:text-primary"
+              className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant transition-colors hover:text-primary"
             >
               Docs
             </a>
-            <Link
-              href="/#how-it-works"
-              className="font-body text-body-md text-on-surface-variant transition-colors hover:text-primary"
-            >
-              How it works
-            </Link>
           </div>
         </div>
-        <div className="flex items-center gap-md">
+        <div className="flex items-center gap-sm">
           <Link
             href="/login"
-            className="hidden sm:inline-flex items-center rounded-xl px-4 py-2 font-body text-body-md text-on-surface-variant transition-colors hover:text-primary"
+            className="inline-flex items-center rounded-md bg-primary-container px-4 py-2 font-label text-[11px] uppercase tracking-[0.22em] text-on-primary-container transition-opacity hover:opacity-85"
           >
             Sign in
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center rounded-xl bg-primary px-6 py-2 font-body text-body-md font-bold text-on-primary transition-transform hover:scale-95"
-          >
-            Get started
           </Link>
         </div>
       </div>

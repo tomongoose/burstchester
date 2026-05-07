@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
-import { getDb } from "@/lib/firebase";
-import { buildDatasetQuery, type SortOrder } from "./build-query";
-import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
+import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { SearchFilter } from "@/lib/domain/search-filter";
+import { fetchDatasetSummaries } from "./list-datasets";
+import type { SortOrder } from "./build-query";
 
 export interface UseDatasetSearchResult {
   readonly summaries: readonly DatasetSummary[];
@@ -20,16 +19,24 @@ export function useDatasetSearch(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = buildDatasetQuery(filter, { sort, db: getDb() });
-    const unsub = onSnapshot(q, (snapshot) => {
-      const next = snapshot.docs.map((doc) => {
-        const data = doc.data() as Parameters<typeof buildDatasetSummary>[0];
-        return buildDatasetSummary({ ...data, id: doc.id });
+    let cancelled = false;
+    setLoading(true);
+
+    void fetchDatasetSummaries({ filter, sort })
+      .then((next) => {
+        if (cancelled) return;
+        setSummaries(next);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSummaries(Object.freeze([]));
+        setLoading(false);
       });
-      setSummaries(Object.freeze(next));
-      setLoading(false);
-    });
-    return () => unsub();
+
+    return () => {
+      cancelled = true;
+    };
   }, [filter, sort]);
 
   return { summaries, loading };

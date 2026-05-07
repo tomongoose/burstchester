@@ -11,6 +11,7 @@ llm/llama.cpp/
 
 # Anthropic / Claude scratch
 /.omx/
+/.playwright-mcp/
 
 # Node.js
 node_modules/
