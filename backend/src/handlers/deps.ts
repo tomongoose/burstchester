@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
+import { getDatabase, type Database } from "firebase-admin/database";
 import { FieldValue, Timestamp, getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getStorage, type Storage } from "firebase-admin/storage";
 
@@ -26,6 +27,7 @@ export interface HandlerAuth {
 
 export interface HandlerDeps {
   readonly db: Firestore;
+  readonly database: Database;
   readonly storage: Storage;
   readonly auth: HandlerAuth;
   readonly clock: HandlerClock;
@@ -39,6 +41,7 @@ export function buildDefaultHandlerDeps(): HandlerDeps {
   }
   return Object.freeze({
     db: getFirestore(),
+    database: getDatabase(),
     storage: getStorage(),
     auth: Object.freeze({
       verifyIdToken: async (idToken: string) => {

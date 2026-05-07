@@ -1,23 +1,38 @@
 "use client";
 
-import type { JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import Link from "next/link";
-import { useDatasetSearch } from "@/lib/datasets/use-dataset-search";
-import { SearchFilter } from "@/lib/domain/search-filter";
 import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import { buildDatasetDetailHref } from "@/lib/datasets/routes";
+import { fetchTrendingDatasetSummaries } from "@/lib/datasets/trending-datasets";
 
-const SEED_TAG = "quality:seed";
 const DEFAULT_LIMIT = 6;
 
 export function FeaturedDatasets(): JSX.Element {
-  const seedFilter = SearchFilter.create({ tags: [SEED_TAG] });
-  const allFilter = SearchFilter.create({});
-  const seeded = useDatasetSearch(seedFilter, "popular");
-  const fallback = useDatasetSearch(allFilter, "popular");
-  const loading = seeded.loading || fallback.loading;
-  const summaries = seeded.summaries.length > 0 ? seeded.summaries : fallback.summaries;
-  const visible = summaries.slice(0, DEFAULT_LIMIT);
+  const [summaries, setSummaries] = useState<readonly DatasetSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchTrendingDatasetSummaries()
+      .then((next) => {
+        if (cancelled) return;
+        setSummaries(next.slice(0, DEFAULT_LIMIT));
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSummaries(Object.freeze([]));
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visible = summaries;
 
   return (
     <section

@@ -4,14 +4,39 @@ import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase
 import { connectStorageEmulator, getStorage, type FirebaseStorage } from "firebase/storage";
 import { connectFunctionsEmulator, getFunctions, type Functions } from "firebase/functions";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+const DEFAULT_FIREBASE_WEB_CONFIG = Object.freeze({
+  apiKey: "AIzaSyBT48mVt9IDw6Ctf_VjNl0JNc4S1SrVZfs",
+  authDomain: "bustchester-e08c3.firebaseapp.com",
+  projectId: "bustchester-e08c3",
+  storageBucket: "bustchester-e08c3.firebasestorage.app",
+  messagingSenderId: "542098071019",
+  appId: "1:542098071019:web:99a5d7b6592d67514ecdae",
+});
+
+export function resolveFirebaseWebConfig() {
+  return {
+    apiKey:
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.apiKey,
+    authDomain:
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.authDomain,
+    projectId:
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.projectId,
+    storageBucket:
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.storageBucket,
+    messagingSenderId:
+      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.messagingSenderId,
+    appId:
+      process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim()
+      || DEFAULT_FIREBASE_WEB_CONFIG.appId,
+  };
+}
+
+const firebaseConfig = resolveFirebaseWebConfig();
 
 let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;

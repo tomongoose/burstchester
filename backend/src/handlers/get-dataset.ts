@@ -109,5 +109,5 @@ function toDatasetSummaryRecord(dataset: DatasetRecord): DatasetSummaryRecord {
 function applyCors(response: Pick<Response, "setHeader">): void {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }

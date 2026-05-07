@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, type JSX } from "react";
-import { httpsCallable } from "firebase/functions";
+import { httpsCallableFromURL } from "firebase/functions";
 import { getFirebaseFunctions } from "@/lib/firebase";
 import type { DatasetSummary } from "@/lib/domain/dataset-summary";
+import { resolveDatasetBackendBaseUrl } from "@/lib/datasets/list-datasets";
 import { buildDatasetJsonLd } from "@/lib/datasets/seo";
 import { fetchDatasetSummaryById } from "@/lib/datasets/get-dataset";
 import { DownloadButton } from "@/components/datasets/DownloadButton";
@@ -17,29 +18,35 @@ interface DatasetDetailPanelProps {
 export function DatasetDetailPanel({
   datasetId,
 }: DatasetDetailPanelProps): JSX.Element {
-  const [summary, setSummary] = useState<DatasetSummary | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [state, setState] = useState<{
+    readonly resolvedDatasetId: string | null;
+    readonly summary: DatasetSummary | null;
+  }>({
+    resolvedDatasetId: null,
+    summary: null,
+  });
 
   useEffect(() => {
     if (!datasetId) {
-      setSummary(null);
-      setLoaded(true);
       return;
     }
 
     let cancelled = false;
-    setLoaded(false);
 
     void fetchDatasetSummaryById(datasetId)
       .then((next) => {
         if (cancelled) return;
-        setSummary(next);
-        setLoaded(true);
+        setState({
+          resolvedDatasetId: datasetId,
+          summary: next,
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setSummary(null);
-        setLoaded(true);
+        setState({
+          resolvedDatasetId: datasetId,
+          summary: null,
+        });
       });
 
     return () => {
@@ -48,6 +55,9 @@ export function DatasetDetailPanel({
   }, [datasetId]);
 
   if (!datasetId) return <></>;
+
+  const loaded = state.resolvedDatasetId === datasetId;
+  const summary = loaded ? state.summary : null;
 
   if (!loaded) {
     return (
@@ -71,9 +81,9 @@ export function DatasetDetailPanel({
 
   const ld = buildDatasetJsonLd(summary);
   const callable = async (data: { datasetId: string }) => {
-    const fn = httpsCallable<{ datasetId: string }, PrepareDownloadResponse>(
+    const fn = httpsCallableFromURL<{ datasetId: string }, PrepareDownloadResponse>(
       getFirebaseFunctions(),
-      "prepareDownload",
+      `${resolveDatasetBackendBaseUrl()}/prepareDownload`,
     );
     const result = await fn(data);
     return { data: result.data };

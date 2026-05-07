@@ -4,6 +4,10 @@ import { onRequest } from "firebase-functions/v2/https";
 
 import type { DatasetRecord } from "../core/datasets";
 import type { HandlerDeps } from "./deps";
+import { readBearerToken } from "./_request-helpers";
+
+const LIST_DATASETS_MIN_INTERVAL_MS = 5_000;
+const LIST_DATASETS_QUERY_LIMIT = 100;
 
 export interface ListDatasetsQuery {
   readonly language: string | null;
@@ -26,16 +30,41 @@ interface DatasetSummaryRecord {
   readonly status: string;
 }
 
+interface RateLimitResult {
+  readonly allowed: boolean;
+  readonly retryAfterMs?: number;
+}
+
+interface ServerQueryFilter {
+  readonly field: "tags" | "language" | "taskType" | "baseModelHint";
+  readonly operator: "array-contains-any" | "==";
+  readonly value: string | readonly string[];
+}
+
+interface ListDatasetsServerQueryPlan {
+  readonly serverFilter: ServerQueryFilter | null;
+  readonly orderField: "downloadCount" | "createdAt";
+  readonly orderDirection: "desc";
+  readonly queryLimit: number;
+}
+
 export function createListDatasetsHandler(
-  deps: Pick<HandlerDeps, "db">,
+  deps: Pick<HandlerDeps, "db" | "database" | "auth" | "clock">,
 ) {
   return async function handleListDatasets(
-    request: Pick<Request, "method" | "query">,
+    request: Pick<Request, "method" | "query" | "headers">,
     response: Response,
     listDatasetsRequest: (
       query: ListDatasetsQuery,
     ) => Promise<readonly DatasetRecord[]> = (query) =>
       executeListDatasets(deps, query),
+    verifyIdToken: (idToken: string) => Promise<{ uid: string }> = (idToken) =>
+      deps.auth.verifyIdToken(idToken),
+    checkRateLimit: (
+      uid: string,
+      rateLimitKey: string,
+    ) => Promise<RateLimitResult> = (uid, rateLimitKey) =>
+      enforceListDatasetsRateLimit(deps, uid, rateLimitKey),
   ): Promise<void> {
     applyCors(response);
     if (request.method === "OPTIONS") {
@@ -43,9 +72,30 @@ export function createListDatasetsHandler(
       return;
     }
 
+    const bearerToken = readBearerToken(request);
+    if (!bearerToken) {
+      response.status(401).json({
+        ok: false,
+        error: "Missing bearer token.",
+      });
+      return;
+    }
+
     const query = readListDatasetsQuery(request);
 
     try {
+      const decoded = await verifyIdToken(bearerToken);
+      const rateLimitKey = buildListDatasetsRateLimitKey(decoded.uid, query);
+      const rateLimit = await checkRateLimit(decoded.uid, rateLimitKey);
+      if (!rateLimit.allowed) {
+        response.status(429).json({
+          ok: false,
+          error: "Rate limit exceeded. Try again in a few seconds.",
+          retryAfterMs: rateLimit.retryAfterMs ?? LIST_DATASETS_MIN_INTERVAL_MS,
+        });
+        return;
+      }
+
       const datasets = await listDatasetsRequest(query);
       response.status(200).json({
         ok: true,
@@ -65,7 +115,7 @@ export function createListDatasetsHandler(
 }
 
 export function createListDatasets(
-  deps: Pick<HandlerDeps, "db">,
+  deps: Pick<HandlerDeps, "db" | "database" | "auth" | "clock">,
 ) {
   const handler = createListDatasetsHandler(deps);
   return onRequest({ region: "us-central1" }, (request, response) =>
@@ -95,7 +145,21 @@ export async function executeListDatasets(
   deps: Pick<HandlerDeps, "db">,
   query: ListDatasetsQuery,
 ): Promise<readonly DatasetRecord[]> {
-  const snapshot = await deps.db.collection("datasets").get();
+  const plan = buildListDatasetsServerQueryPlan(query);
+  let ref: FirebaseFirestore.Query = deps.db
+    .collection("datasets")
+    .where("status", "==", "active");
+
+  if (plan.serverFilter) {
+    ref = ref.where(
+      plan.serverFilter.field,
+      plan.serverFilter.operator,
+      plan.serverFilter.value,
+    );
+  }
+
+  ref = ref.orderBy(plan.orderField, plan.orderDirection).limit(plan.queryLimit);
+  const snapshot = await ref.get();
   const records = snapshot.docs.map((doc) => {
     const data = doc.data() as DatasetRecord;
     return {
@@ -106,10 +170,133 @@ export async function executeListDatasets(
   return applyListDatasetsQuery(records, query);
 }
 
+export function buildListDatasetsServerQueryPlan(
+  query: ListDatasetsQuery,
+): ListDatasetsServerQueryPlan {
+  const orderField = query.sort === "newest" ? "createdAt" : "downloadCount";
+
+  if (query.tags.length > 0) {
+    return {
+      serverFilter: {
+        field: "tags",
+        operator: "array-contains-any",
+        value: [...query.tags],
+      },
+      orderField,
+      orderDirection: "desc",
+      queryLimit: LIST_DATASETS_QUERY_LIMIT,
+    };
+  }
+
+  if (query.baseModel) {
+    return {
+      serverFilter: {
+        field: "baseModelHint",
+        operator: "==",
+        value: query.baseModel,
+      },
+      orderField,
+      orderDirection: "desc",
+      queryLimit: LIST_DATASETS_QUERY_LIMIT,
+    };
+  }
+
+  if (query.task) {
+    return {
+      serverFilter: {
+        field: "taskType",
+        operator: "==",
+        value: query.task,
+      },
+      orderField,
+      orderDirection: "desc",
+      queryLimit: LIST_DATASETS_QUERY_LIMIT,
+    };
+  }
+
+  if (query.language) {
+    return {
+      serverFilter: {
+        field: "language",
+        operator: "==",
+        value: query.language,
+      },
+      orderField,
+      orderDirection: "desc",
+      queryLimit: LIST_DATASETS_QUERY_LIMIT,
+    };
+  }
+
+  return {
+    serverFilter: null,
+    orderField,
+    orderDirection: "desc",
+    queryLimit: LIST_DATASETS_QUERY_LIMIT,
+  };
+}
+
+export async function enforceListDatasetsRateLimit(
+  deps: Pick<HandlerDeps, "database" | "clock">,
+  uid: string,
+  rateLimitKey: string,
+): Promise<RateLimitResult> {
+  const ref = deps.database.ref(
+    `_requestRateLimits/listDatasets/${rateLimitKey}`,
+  );
+  const now = deps.clock.now();
+
+  const result = await ref.transaction((current) => {
+    const nowMs = now.toMillis();
+    const previous =
+      current && typeof current === "object"
+        ? toEpochMillis((current as { lastRequestAt?: unknown }).lastRequestAt)
+        : 0;
+    const elapsedMs = previous > 0 ? nowMs - previous : LIST_DATASETS_MIN_INTERVAL_MS;
+
+    if (elapsedMs < LIST_DATASETS_MIN_INTERVAL_MS) {
+      return;
+    }
+
+    return {
+      uid,
+      lastRequestAt: nowMs,
+    };
+  });
+
+  if (!result.committed) {
+    const current = result.snapshot.val() as
+      | { lastRequestAt?: number }
+      | null;
+    const previous = current?.lastRequestAt ?? 0;
+    const elapsedMs = now.toMillis() - previous;
+    return {
+      allowed: false,
+      retryAfterMs: Math.max(0, LIST_DATASETS_MIN_INTERVAL_MS - elapsedMs),
+    };
+  }
+
+  return { allowed: true };
+}
+
+export function buildListDatasetsRateLimitKey(
+  uid: string,
+  query: ListDatasetsQuery,
+): string {
+  return [
+    uid,
+    query.sort,
+    query.language ?? "",
+    query.task ?? "",
+    query.baseModel ?? "",
+    query.tags.join(","),
+    String(query.limit),
+  ].join("::");
+}
+
 function applyCors(response: Pick<Response, "setHeader">): void {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 function readQueryString(

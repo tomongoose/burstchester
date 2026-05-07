@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
-const useDatasetSearchMock = vi.fn();
+const fetchTrendingDatasetSummariesMock = vi.fn();
 
-vi.mock("@/lib/datasets/use-dataset-search", () => ({
-  useDatasetSearch: (...args: unknown[]) => useDatasetSearchMock(...args),
+vi.mock("@/lib/datasets/trending-datasets", () => ({
+  fetchTrendingDatasetSummaries: (...args: unknown[]) =>
+    fetchTrendingDatasetSummariesMock(...args),
 }));
 
 import { FeaturedDatasets } from "@/components/landing/FeaturedDatasets";
@@ -24,19 +25,17 @@ const summary = buildDatasetSummary({
 
 describe("FeaturedDatasets", () => {
   beforeEach(() => {
-    useDatasetSearchMock.mockReset();
+    fetchTrendingDatasetSummariesMock.mockReset();
   });
 
-  it("falls back to popular datasets when no seed-tagged datasets exist", () => {
-    useDatasetSearchMock
-      .mockReturnValueOnce({ summaries: [], loading: false })
-      .mockReturnValueOnce({ summaries: [summary], loading: false });
+  it("renders trending datasets from a single popular dataset request", async () => {
+    fetchTrendingDatasetSummariesMock.mockResolvedValue([summary]);
 
     render(<FeaturedDatasets />);
 
-    expect(screen.getByText("Fallback Dataset")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/No seed datasets available yet/i),
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Fallback Dataset")).toBeInTheDocument(),
+    );
+    expect(fetchTrendingDatasetSummariesMock).toHaveBeenCalledTimes(1);
   });
 });

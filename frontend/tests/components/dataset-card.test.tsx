@@ -41,13 +41,13 @@ describe("DatasetCard", () => {
     expect(screen.getByText("47")).toBeInTheDocument();
   });
 
-  it("links to the static dataset detail route using a query param", () => {
+  it("links to the static dataset detail route using a query param and anchor", () => {
     const summary = buildDatasetSummary(baseRecord);
     render(<DatasetCard summary={summary} />);
 
     expect(screen.getByRole("link", { name: /Korean Legal Q&A/i })).toHaveAttribute(
       "href",
-      "/datasets?dataset=ds-1",
+      "/datasets?dataset=ds-1#dataset-detail",
     );
   });
 });

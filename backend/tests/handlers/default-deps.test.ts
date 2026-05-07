@@ -6,6 +6,7 @@ const adminAppSpies = {
   initializeApp: vi.fn(),
 };
 const firestoreSpy = vi.fn(() => ({ __brand: "firestore" } as unknown));
+const databaseSpy = vi.fn(() => ({ __brand: "database" } as unknown));
 const storageSpy = vi.fn(() => ({ __brand: "storage" } as unknown));
 
 vi.mock("firebase-admin/app", () => ({
@@ -29,10 +30,15 @@ vi.mock("firebase-admin/storage", () => ({
   getStorage: () => storageSpy(),
 }));
 
+vi.mock("firebase-admin/database", () => ({
+  getDatabase: () => databaseSpy(),
+}));
+
 beforeEach(() => {
   adminAppSpies.getApps.mockClear();
   adminAppSpies.initializeApp.mockClear();
   firestoreSpy.mockClear();
+  databaseSpy.mockClear();
   storageSpy.mockClear();
   adminAppSpies.getApps.mockReturnValue([]);
   vi.resetModules();
@@ -45,6 +51,7 @@ describe("buildDefaultHandlerDeps — lazy admin SDK initialization", () => {
     expect(adminAppSpies.initializeApp).not.toHaveBeenCalled();
     expect(firestoreSpy).not.toHaveBeenCalled();
     expect(storageSpy).not.toHaveBeenCalled();
+    expect(databaseSpy).not.toHaveBeenCalled();
   });
 
   it("initializes the firebase app exactly once across multiple invocations", async () => {
@@ -64,6 +71,7 @@ describe("buildDefaultHandlerDeps — lazy admin SDK initialization", () => {
 
     expect(deps.db).toBeDefined();
     expect(deps.storage).toBeDefined();
+    expect(deps.database).toBeDefined();
     expect(deps.clock).toBeDefined();
     expect(deps.fieldValue).toBeDefined();
     expect(deps.generateId).toBeDefined();

@@ -15,29 +15,48 @@ export function useDatasetSearch(
   filter: SearchFilter,
   sort: SortOrder,
 ): UseDatasetSearchResult {
-  const [summaries, setSummaries] = useState<readonly DatasetSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const requestKey = [
+    sort,
+    filter.language ?? "",
+    filter.task ?? "",
+    filter.baseModel ?? "",
+    filter.size ?? "",
+    filter.tags.join(","),
+  ].join("|");
+  const [state, setState] = useState<{
+    readonly resolvedKey: string | null;
+    readonly summaries: readonly DatasetSummary[];
+  }>({
+    resolvedKey: null,
+    summaries: [],
+  });
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
 
     void fetchDatasetSummaries({ filter, sort })
       .then((next) => {
         if (cancelled) return;
-        setSummaries(next);
-        setLoading(false);
+        setState({
+          resolvedKey: requestKey,
+          summaries: next,
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setSummaries(Object.freeze([]));
-        setLoading(false);
+        setState({
+          resolvedKey: requestKey,
+          summaries: Object.freeze([]),
+        });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [filter, sort]);
+  }, [filter, requestKey, sort]);
 
-  return { summaries, loading };
+  return {
+    summaries: state.summaries,
+    loading: state.resolvedKey !== requestKey,
+  };
 }

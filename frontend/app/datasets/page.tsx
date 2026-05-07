@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { CategoryFilter } from "@/components/datasets/CategoryFilter";
@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SearchFilter } from "@/lib/domain/search-filter";
 import { useDatasetSearch } from "@/lib/datasets/use-dataset-search";
 import type { SortOrder } from "@/lib/datasets/build-query";
+import { DATASET_DETAIL_ANCHOR } from "@/lib/datasets/routes";
 
 export default function DatasetsPage() {
   return (
@@ -26,6 +27,15 @@ function DatasetsPageContent() {
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
   const [sort, setSort] = useState<SortOrder>("popular");
   const { summaries, loading } = useDatasetSearch(filter, sort);
+  const detailRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedDatasetId) return;
+    detailRef.current?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
+  }, [selectedDatasetId]);
 
   return (
     <>
@@ -45,7 +55,11 @@ function DatasetsPageContent() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-container-max px-gutter pb-lg">
+        <div
+          id={DATASET_DETAIL_ANCHOR}
+          ref={detailRef}
+          className="mx-auto max-w-container-max px-gutter pb-lg"
+        >
           {selectedDatasetId ? (
             <DatasetDetailPanel datasetId={selectedDatasetId} />
           ) : null}

@@ -1,6 +1,7 @@
 import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { SearchFilter } from "@/lib/domain/search-filter";
 import type { SortOrder } from "./build-query";
+import { getDatasetApiAuthToken } from "./auth-token";
 
 interface DatasetSearchOptions {
   readonly filter: SearchFilter;
@@ -24,6 +25,24 @@ interface ListDatasetsResponse {
   readonly datasets: readonly DatasetSummaryRecord[];
 }
 
+const SUCCESS_CACHE_TTL_MS = 10_000;
+const FAILURE_BACKOFF_MS = 15_000;
+const EMPTY_DATASET_SUMMARIES = Object.freeze([]) as readonly DatasetSummary[];
+const FAILURE_BACKOFF_STORAGE_PREFIX = "burstchester:list-datasets:failed:";
+
+const datasetSummaryCache = new Map<
+  string,
+  {
+    readonly summaries: readonly DatasetSummary[];
+    readonly expiresAt: number;
+    readonly failedAt: number | null;
+  }
+>();
+const datasetSummaryInflight = new Map<
+  string,
+  Promise<readonly DatasetSummary[]>
+>();
+
 export async function fetchDatasetSummaries(
   options: DatasetSearchOptions,
   fetchImpl: typeof fetch = fetch,
@@ -31,16 +50,67 @@ export async function fetchDatasetSummaries(
 ): Promise<readonly DatasetSummary[]> {
   const url = new URL(baseUrl);
   appendQuery(url.searchParams, options);
+  const key = url.toString();
+  const now = Date.now();
+  const cached = datasetSummaryCache.get(key);
+  const persistedFailedAt = readFailureBackoffTimestamp(key);
 
-  const response = await fetchImpl(url.toString());
-  if (!response.ok) {
-    throw new Error(`Dataset listing failed with status ${response.status}.`);
+  if (cached && cached.expiresAt > now) {
+    return cached.summaries;
   }
 
-  const payload = (await response.json()) as ListDatasetsResponse;
-  return Object.freeze(
-    payload.datasets.map((record) => buildDatasetSummary(record)),
-  );
+  if (cached && persistedFailedAt && now - persistedFailedAt < FAILURE_BACKOFF_MS) {
+    return cached?.summaries ?? EMPTY_DATASET_SUMMARIES;
+  }
+
+  if (cached?.failedAt && now - cached.failedAt < FAILURE_BACKOFF_MS) {
+    return cached.summaries;
+  }
+
+  const inFlight = datasetSummaryInflight.get(key);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const request = (async (): Promise<readonly DatasetSummary[]> => {
+    try {
+      const token = await getDatasetApiAuthToken();
+      const response = await fetchImpl(key, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Dataset listing failed with status ${response.status}.`);
+      }
+
+      const payload = (await response.json()) as ListDatasetsResponse;
+      const summaries = Object.freeze(
+        payload.datasets.map((record) => buildDatasetSummary(record)),
+      );
+      clearFailureBackoffTimestamp(key);
+      datasetSummaryCache.set(key, {
+        summaries,
+        expiresAt: Date.now() + SUCCESS_CACHE_TTL_MS,
+        failedAt: null,
+      });
+      return summaries;
+    } catch {
+      const fallback = cached?.summaries ?? EMPTY_DATASET_SUMMARIES;
+      writeFailureBackoffTimestamp(key, Date.now());
+      datasetSummaryCache.set(key, {
+        summaries: fallback,
+        expiresAt: Date.now() + FAILURE_BACKOFF_MS,
+        failedAt: Date.now(),
+      });
+      return fallback;
+    } finally {
+      datasetSummaryInflight.delete(key);
+    }
+  })();
+
+  datasetSummaryInflight.set(key, request);
+  return request;
 }
 
 export function resolveListDatasetsUrl(): string {
@@ -90,12 +160,72 @@ function resolveFirebaseProjectId(): string {
   if (explicit) return explicit;
 
   if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    if (hostname.endsWith(".web.app") || hostname.endsWith(".firebaseapp.com")) {
-      const [candidate] = hostname.split(".");
-      if (candidate) return candidate;
-    }
+    return inferFirebaseProjectIdFromHostname(window.location.hostname);
   }
 
   return "";
+}
+
+export function inferFirebaseProjectIdFromHostname(hostname: string): string {
+  if (hostname.endsWith(".web.app") || hostname.endsWith(".firebaseapp.com")) {
+    const [candidate] = hostname.split(".");
+    if (candidate) return candidate;
+  }
+
+  return "";
+}
+
+export function __resetDatasetSummaryRequestCacheForTests(): void {
+  datasetSummaryCache.clear();
+  datasetSummaryInflight.clear();
+  clearFailureBackoffStorage();
+}
+
+function readFailureBackoffTimestamp(key: string): number | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(
+      `${FAILURE_BACKOFF_STORAGE_PREFIX}${key}`,
+    );
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeFailureBackoffTimestamp(key: string, value: number): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(
+      `${FAILURE_BACKOFF_STORAGE_PREFIX}${key}`,
+      String(value),
+    );
+  } catch {}
+}
+
+function clearFailureBackoffTimestamp(key: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.removeItem(`${FAILURE_BACKOFF_STORAGE_PREFIX}${key}`);
+  } catch {}
+}
+
+function clearFailureBackoffStorage(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const keys: string[] = [];
+    for (let idx = 0; idx < window.sessionStorage.length; idx += 1) {
+      const key = window.sessionStorage.key(idx);
+      if (key?.startsWith(FAILURE_BACKOFF_STORAGE_PREFIX)) {
+        keys.push(key);
+      }
+    }
+    keys.forEach((key) => window.sessionStorage.removeItem(key));
+  } catch {}
 }
