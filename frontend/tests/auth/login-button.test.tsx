@@ -27,7 +27,9 @@ describe("LoginButton", () => {
     const spy = new AuthServiceSpy();
     render(<LoginButton authService={spy as unknown as AuthService} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /continue with google/i }),
+    );
 
     expect(spy.signInCalls).toBe(1);
   });

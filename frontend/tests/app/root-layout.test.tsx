@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/font/google", () => ({
   Geist: () => ({ variable: "font-geist-sans" }),
   Geist_Mono: () => ({ variable: "font-geist-mono" }),
+  Space_Grotesk: () => ({ variable: "font-space-grotesk" }),
 }));
 
 import RootLayout from "@/app/layout";

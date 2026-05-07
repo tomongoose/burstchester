@@ -39,9 +39,19 @@ export function DownloadButton({
 
   if (status === "error") {
     return (
-      <div>
-        <p role="alert">Download failed: {errorMessage ?? "Unknown error"}</p>
-        <button type="button" onClick={() => void handleDownload()}>
+      <div className="rounded-xl border border-error/40 bg-error-container/40 p-md">
+        <p
+          role="alert"
+          className="font-body text-body-md text-on-error-container"
+        >
+          Download failed: {errorMessage ?? "Unknown error"}
+        </p>
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          className="mt-sm inline-flex items-center gap-xs rounded-lg bg-primary px-4 py-2 font-body text-body-md font-bold text-on-primary"
+        >
+          <span className="material-symbols-outlined">refresh</span>
           Retry
         </button>
       </div>
@@ -53,8 +63,10 @@ export function DownloadButton({
       type="button"
       disabled={status === "pending"}
       onClick={() => void handleDownload()}
+      className="inline-flex w-full items-center justify-center gap-sm rounded-xl bg-primary px-lg py-3 font-body text-body-lg font-bold text-on-primary transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {status === "pending" ? "Preparing…" : "Download"}
+      <span className="material-symbols-outlined">download</span>
+      {status === "pending" ? "Preparing…" : "Download .zip"}
     </button>
   );
 }
