@@ -22,18 +22,6 @@
       ]
     }
   ],
-  "hosting": {
-    "source": "../frontend",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "**/tests/**"
-    ],
-    "frameworksBackend": {
-      "region": "us-central1"
-    }
-  },
   "emulators": {
     "auth": { "port": 9099 },
     "functions": { "port": 5001 },

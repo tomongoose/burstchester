@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 
 import { type DatasetRecord } from "./datasets";
+import { type DatasetStatus } from "./dataset-status";
 
 interface ArchiveFile {
   name: string;
@@ -13,38 +14,38 @@ interface ArchiveInput {
 }
 
 export interface DownloadableDataset {
-  id: string;
-  ownerUid: string;
-  ownerName: string;
-  title: string;
-  description: string;
-  tags: string[];
-  baseModelHint: string;
-  taskType: string;
-  format: string;
-  language: string;
-  license: string;
-  rowCount: number;
-  byteSize: number;
-  avgUserTokens: number;
-  avgAssistantTokens: number;
-  storagePath: string;
-  normalizedStoragePath: string | null;
-  zipPath: string | null;
-  sourceModel: string;
-  sourceModelLicense: string;
-  sourceConfirmed: boolean;
-  parentDatasets: string[];
-  samplingMethod: string | null;
-  capabilityTags: string[];
-  sampleHashesMerkleRoot: string;
-  likeCount: number;
-  downloadCount: number;
-  reportCount: number;
-  searchKeywords: string[];
-  status: string;
-  createdAt: unknown;
-  updatedAt: unknown;
+  readonly id: string;
+  readonly ownerUid: string;
+  readonly ownerName: string;
+  readonly title: string;
+  readonly description: string;
+  readonly tags: readonly string[];
+  readonly baseModelHint: string;
+  readonly taskType: string;
+  readonly format: string;
+  readonly language: string;
+  readonly license: string;
+  readonly rowCount: number;
+  readonly byteSize: number;
+  readonly avgUserTokens: number;
+  readonly avgAssistantTokens: number;
+  readonly storagePath: string;
+  readonly normalizedStoragePath: string | null;
+  readonly zipPath: string | null;
+  readonly sourceModel: string;
+  readonly sourceModelLicense: string;
+  readonly sourceConfirmed: boolean;
+  readonly parentDatasets: readonly string[];
+  readonly samplingMethod: string | null;
+  readonly capabilityTags: readonly string[];
+  readonly sampleHashesMerkleRoot: string;
+  readonly likeCount: number;
+  readonly downloadCount: number;
+  readonly reportCount: number;
+  readonly searchKeywords: readonly string[];
+  readonly status: DatasetStatus;
+  readonly createdAt: unknown;
+  readonly updatedAt: unknown;
 }
 
 export interface PrepareDownloadDeps {
@@ -56,45 +57,58 @@ export interface PrepareDownloadDeps {
   incrementDownloadStats: (dataset: DownloadableDataset, requesterUid?: string) => Promise<void>;
 }
 
+export interface DownloadView {
+  readonly cached: boolean;
+  readonly zipPath: string;
+}
+
+export function getDownloadView(dataset: DownloadableDataset): DownloadView {
+  if (dataset.status !== "active" && dataset.status !== "flagged") {
+    throw new Error(`Dataset ${dataset.id} is not downloadable.`);
+  }
+  if (dataset.zipPath) {
+    return Object.freeze({ cached: true, zipPath: dataset.zipPath });
+  }
+  return Object.freeze({ cached: false, zipPath: `downloads/${dataset.id}/${dataset.id}.zip` });
+}
+
 export async function prepareDownloadCore(
   input: { datasetId: string; requesterUid?: string },
   deps: PrepareDownloadDeps,
+  now: Date,
 ) {
   const dataset = await deps.getDataset(input.datasetId);
   if (!dataset) {
     throw new Error(`Dataset not found: ${input.datasetId}`);
   }
 
-  if (dataset.status !== "active" && dataset.status !== "flagged") {
-    throw new Error(`Dataset ${input.datasetId} is not downloadable.`);
-  }
+  const view = getDownloadView(dataset);
 
-  if (dataset.zipPath) {
-    const url = await deps.getSignedUrl(dataset.zipPath);
+  if (view.cached) {
+    const url = await deps.getSignedUrl(view.zipPath);
     await deps.incrementDownloadStats(dataset, input.requesterUid);
     return {
       cached: true,
-      zipPath: dataset.zipPath,
+      zipPath: view.zipPath,
       url,
     };
   }
 
   const normalizedJsonl = await deps.downloadNormalizedJsonl(dataset);
-  const archive = createDatasetArchive({ dataset, normalizedJsonl });
-  const zipPath = `downloads/${dataset.id}/${dataset.id}.zip`;
+  const archive = createDatasetArchive({ dataset, normalizedJsonl }, now);
 
-  await deps.saveArchive(zipPath, archive);
-  await deps.setZipPath(dataset.id, zipPath);
+  await deps.saveArchive(view.zipPath, archive);
+  await deps.setZipPath(dataset.id, view.zipPath);
   await deps.incrementDownloadStats(dataset, input.requesterUid);
 
   return {
     cached: false,
-    zipPath,
-    url: await deps.getSignedUrl(zipPath),
+    zipPath: view.zipPath,
+    url: await deps.getSignedUrl(view.zipPath),
   };
 }
 
-export function createDatasetArchive(input: ArchiveInput): Buffer {
+export function createDatasetArchive(input: ArchiveInput, now: Date): Buffer {
   const meta = {
     id: input.dataset.id,
     title: input.dataset.title,
@@ -115,7 +129,7 @@ export function createDatasetArchive(input: ArchiveInput): Buffer {
       avgAssistantTokens: input.dataset.avgAssistantTokens,
       byteSize: input.dataset.byteSize,
     },
-    createdAt: toIsoString(input.dataset.createdAt),
+    createdAt: toIsoString(input.dataset.createdAt, now),
     burstchester: {
       version: "1.0",
       url: `https://burstchester.app/d/${input.dataset.id}`,
@@ -131,7 +145,7 @@ export function createDatasetArchive(input: ArchiveInput): Buffer {
     file("LICENSE", buildLicenseText(input.dataset)),
   ];
 
-  return createZipArchive(files);
+  return createZipArchive(files, now);
 }
 
 export function buildModelfileTemplate(dataset: Pick<DownloadableDataset, "title" | "baseModelHint">): string {
@@ -158,11 +172,18 @@ export function buildModelfileTemplate(dataset: Pick<DownloadableDataset, "title
   ].join("\n");
 }
 
-export function buildReadmeTemplate(dataset: Pick<
-  DownloadableDataset,
-  "title" | "description" | "baseModelHint" | "license" | "rowCount" | "language"
->): string {
-  return [
+export interface ReadmeOptions {
+  readonly colabUrl?: string;
+}
+
+export function buildReadmeTemplate(
+  dataset: Pick<
+    DownloadableDataset,
+    "title" | "description" | "baseModelHint" | "license" | "rowCount" | "language"
+  >,
+  options: ReadmeOptions = {},
+): string {
+  const lines: string[] = [
     `# ${dataset.title}`,
     "",
     dataset.description,
@@ -184,11 +205,13 @@ export function buildReadmeTemplate(dataset: Pick<
     "- Quantize to GGUF.",
     "- Use the provided Modelfile template with Ollama.",
     "",
-    "## Suggested Colab Notes",
-    "- Unsloth / TRL with OpenAI messages JSONL",
-    "- GGUF export and `ollama create` packaging",
-    "",
-  ].join("\n");
+  ];
+
+  if (options.colabUrl) {
+    lines.push("## Colab Notebook", `- Open in Colab: ${options.colabUrl}`, "");
+  }
+
+  return lines.join("\n");
 }
 
 function buildLicenseText(dataset: Pick<DownloadableDataset, "title" | "license" | "sourceModel">): string {
@@ -243,7 +266,7 @@ function file(name: string, content: string): ArchiveFile {
   };
 }
 
-function toIsoString(value: unknown): string {
+function toIsoString(value: unknown, fallback: Date): string {
   if (value instanceof Date) {
     return value.toISOString();
   }
@@ -252,10 +275,10 @@ function toIsoString(value: unknown): string {
     return (value as any).toDate().toISOString();
   }
 
-  return new Date().toISOString();
+  return fallback.toISOString();
 }
 
-function createZipArchive(files: ArchiveFile[]): Buffer {
+function createZipArchive(files: ArchiveFile[], now: Date): Buffer {
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
   let offset = 0;
@@ -264,7 +287,7 @@ function createZipArchive(files: ArchiveFile[]): Buffer {
     const nameBuffer = Buffer.from(entry.name, "utf8");
     const crc = crc32(entry.data);
     const size = entry.data.length;
-    const timestamp = dosTimestamp(new Date());
+    const timestamp = dosTimestamp(now);
 
     const localHeader = Buffer.alloc(30);
     localHeader.writeUInt32LE(0x04034b50, 0);
