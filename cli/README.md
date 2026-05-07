@@ -200,6 +200,29 @@ node src/cli.mjs train-gemma4-e2b-full
 - Python wrapper `src/python/train_gemma4_e2b_full.py` 실행
 - 내부적으로 `trainingMethod=full`, `modelRepo=google/gemma-4-E2B`를 강제
 
+### Gemma 2B IT LoRA fine-tuning
+
+`llm/main.ipynb` 기준 설정을 반영한 `google/gemma-2b-it` 전용 LoRA 명령도 있다.
+
+```bash
+node src/cli.mjs train-gemma-2b-it-lora --dataset-id legal-ko
+```
+
+또는 저장된 dataset list 전체를 그대로 사용할 수 있다.
+
+```bash
+node src/cli.mjs train-gemma-2b-it-lora
+```
+
+이 명령은:
+
+- dataset preflight 수행
+- 각 dataset ZIP 다운로드
+- `dataset.jsonl` 병합
+- Python wrapper `src/python/train_gemma_2b_it_lora.py` 실행
+- 내부적으로 `trainingMethod=lora`, `modelRepo=google/gemma-2b-it`를 강제
+- 기본값으로 `maxSeqLength=128`, `loraRank=8`, `loraAlpha=16`, `loraDropout=0.05` 적용
+
 ## 학습 전제조건
 
 CLI 자체는 Node 20 내장 기능만 사용한다. 실제 학습은 `python3`로 실행되며 아래 Python 패키지가 별도로 준비되어 있어야 한다.

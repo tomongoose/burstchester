@@ -1,10 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 
 import {
+  buildGemma2BItLoraManifest,
   buildGemma4E2BFullManifest,
   buildTrainingCommand,
   buildTrainingManifest,
+  defaultGemma2BItLoraTrainerScriptPath,
 } from "../src/lib/train.mjs";
 
 test("buildTrainingManifest keeps core training metadata", () => {
@@ -51,4 +54,33 @@ test("buildGemma4E2BFullManifest pins model repo and full training mode", () => 
   assert.equal(manifest.modelRepo, "google/gemma-4-E2B");
   assert.equal(manifest.trainingMethod, "full");
   assert.deepEqual(manifest.datasetIds, ["dataset-1"]);
+});
+
+test("buildGemma2BItLoraManifest pins model repo and notebook-style lora defaults", () => {
+  const manifest = buildGemma2BItLoraManifest({
+    datasetId: "dataset-1",
+    datasetIds: ["dataset-1"],
+    datasetPath: "/tmp/merged-dataset.jsonl",
+    outputDir: "/tmp/out",
+  });
+
+  assert.equal(manifest.modelRepo, "google/gemma-2b-it");
+  assert.equal(manifest.trainingMethod, "lora");
+  assert.equal(manifest.maxSeqLength, 128);
+  assert.equal(manifest.loraRank, 8);
+  assert.equal(manifest.loraAlpha, 16);
+  assert.equal(manifest.loraDropout, 0.05);
+  assert.equal(manifest.perDeviceTrainBatchSize, 1);
+  assert.equal(manifest.gradientAccumulationSteps, 1);
+  assert.equal(manifest.numTrainEpochs, 1);
+  assert.deepEqual(manifest.datasetIds, ["dataset-1"]);
+});
+
+test("defaultGemma2BItLoraTrainerScriptPath points at the dedicated wrapper", () => {
+  const scriptPath = defaultGemma2BItLoraTrainerScriptPath();
+  assert.match(
+    scriptPath,
+    /train_gemma_2b_it_lora\.py$/,
+  );
+  assert.equal(existsSync(scriptPath), true);
 });

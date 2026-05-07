@@ -38,6 +38,21 @@ export function buildGemma4E2BFullManifest(input) {
   });
 }
 
+export function buildGemma2BItLoraManifest(input) {
+  return buildTrainingManifest({
+    ...input,
+    modelRepo: "google/gemma-2b-it",
+    trainingMethod: "lora",
+    numTrainEpochs: input.numTrainEpochs ?? 1,
+    perDeviceTrainBatchSize: input.perDeviceTrainBatchSize ?? 1,
+    gradientAccumulationSteps: input.gradientAccumulationSteps ?? 1,
+    maxSeqLength: input.maxSeqLength ?? 128,
+    loraRank: input.loraRank ?? 8,
+    loraAlpha: input.loraAlpha ?? 16,
+    loraDropout: input.loraDropout ?? 0.05,
+  });
+}
+
 export function buildTrainingCommand({ pythonBin, scriptPath, configPath }) {
   return [pythonBin, scriptPath, "--config", configPath];
 }
@@ -86,4 +101,8 @@ export function defaultTrainerScriptPath() {
 
 export function defaultGemma4FullTrainerScriptPath() {
   return fileURLToPath(new URL("../python/train_gemma4_e2b_full.py", import.meta.url));
+}
+
+export function defaultGemma2BItLoraTrainerScriptPath() {
+  return fileURLToPath(new URL("../python/train_gemma_2b_it_lora.py", import.meta.url));
 }
