@@ -178,6 +178,28 @@ node src/cli.mjs train --model-repo Qwen/Qwen3-0.6B --preflight-only
 
 이 모드는 각 dataset ID에 대해 백엔드 `prepareDatasetDownload` 호출이 성공하는지 먼저 확인하고, 성공/실패 목록을 JSON으로 출력한다.
 
+### Gemma 4 E2B full fine-tuning
+
+`google/gemma-4-E2B`를 고정해서 full fine-tuning 하는 전용 명령도 있다.
+
+```bash
+node src/cli.mjs train-gemma4-e2b-full --dataset-id legal-ko
+```
+
+또는 저장된 dataset list 전체를 그대로 사용할 수 있다.
+
+```bash
+node src/cli.mjs train-gemma4-e2b-full
+```
+
+이 명령은:
+
+- dataset preflight 수행
+- 각 dataset ZIP 다운로드
+- `dataset.jsonl` 병합
+- Python wrapper `src/python/train_gemma4_e2b_full.py` 실행
+- 내부적으로 `trainingMethod=full`, `modelRepo=google/gemma-4-E2B`를 강제
+
 ## 학습 전제조건
 
 CLI 자체는 Node 20 내장 기능만 사용한다. 실제 학습은 `python3`로 실행되며 아래 Python 패키지가 별도로 준비되어 있어야 한다.

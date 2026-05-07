@@ -69,7 +69,12 @@ export const onDatasetUpload = onObjectFinalized({ region: "us-central1" }, asyn
   const data = event.data;
   const name = data.name ?? "";
 
-  if (!name || name.startsWith("normalized/") || name.startsWith("downloads/")) {
+  if (
+    !name
+    || name.startsWith("normalized/")
+    || name.startsWith("downloads/")
+    || name.startsWith("debug-uploads/")
+  ) {
     return;
   }
 
@@ -554,7 +559,7 @@ async function uploadDebugDatasetRecord(input: {
     typeof input.metadata.datasetId === "string" ? input.metadata.datasetId : "",
     input.filename,
   );
-  const storagePath = `datasets/${input.ownerUid}/debug/${datasetId}.jsonl`;
+  const storagePath = `debug-uploads/${input.ownerUid}/${datasetId}.jsonl`;
   const sourceModel =
     typeof input.metadata.sourceModel === "string" && input.metadata.sourceModel.trim() ?
       input.metadata.sourceModel.trim() :

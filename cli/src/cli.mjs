@@ -30,7 +30,12 @@ import {
   removeDatasetId,
   saveSession,
 } from "./lib/session.mjs";
-import { buildTrainingManifest, runTraining } from "./lib/train.mjs";
+import {
+  buildGemma4E2BFullManifest,
+  buildTrainingManifest,
+  defaultGemma4FullTrainerScriptPath,
+  runTraining,
+} from "./lib/train.mjs";
 import { extractStoredZip } from "./lib/zip.mjs";
 
 const ROOT_DIR = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -56,6 +61,9 @@ async function main(argv) {
       return;
     case "train":
       await handleTrain(flags);
+      return;
+    case "train-gemma4-e2b-full":
+      await handleTrainGemma4E2BFull(flags);
       return;
     default:
       printUsage();
@@ -456,6 +464,84 @@ async function handleTrain(flags) {
   );
 }
 
+async function handleTrainGemma4E2BFull(flags) {
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
+  const session = await loadSession();
+  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetId = datasetIds[0];
+  const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma4-e2b-full-${datasetId}`)));
+  const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+
+  await ensureDir(workspace);
+  const preflight = await preflightDatasetDownloads({
+    endpointUrl,
+    datasetIds,
+  });
+
+  if (flags["preflight-only"] === true) {
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight }, null, 2)}\n`);
+    return;
+  }
+
+  if (preflight.summary.failedCount > 0) {
+    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
+  }
+
+  const mergedParts = [];
+
+  for (const currentDatasetId of datasetIds) {
+    const metadata = await fetchDatasetPackageMetadata({
+      endpointUrl,
+      datasetId: currentDatasetId,
+    });
+
+    const zipPath = join(workspace, `${currentDatasetId}.zip`);
+    await downloadToFile({
+      url: metadata.url,
+      destination: zipPath,
+    });
+
+    const datasetDir = join(workspace, "datasets", currentDatasetId);
+    const archive = await readFile(zipPath);
+    await extractStoredZip(archive, datasetDir);
+    mergedParts.push(join(datasetDir, "dataset.jsonl"));
+  }
+
+  const mergedDatasetPath = await mergeTextFiles(
+    mergedParts,
+    join(workspace, "merged-dataset.jsonl"),
+  );
+
+  const manifest = buildGemma4E2BFullManifest({
+    datasetId,
+    datasetIds,
+    datasetPath: mergedDatasetPath,
+    outputDir: join(workspace, "output"),
+    numTrainEpochs: flags.epochs,
+    perDeviceTrainBatchSize: flags["batch-size"],
+    gradientAccumulationSteps: flags["grad-accum"],
+    learningRate: flags["learning-rate"],
+    maxSeqLength: flags["max-seq-length"],
+    loggingSteps: flags["logging-steps"],
+    saveSteps: flags["save-steps"],
+  });
+
+  const result = await runTraining({
+    manifest,
+    workDir: workspace,
+    pythonBin,
+    scriptPath: defaultGemma4FullTrainerScriptPath(),
+  });
+
+  process.stdout.write(
+    `${JSON.stringify({ datasetId, datasetIds, modelRepo: manifest.modelRepo, workspace, outputDir: manifest.outputDir, ...result }, null, 2)}\n`,
+  );
+}
+
 function printUsage() {
   process.stdout.write(
     [
@@ -477,6 +563,7 @@ function printUsage() {
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
       "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
       "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );

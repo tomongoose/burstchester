@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTrainingCommand, buildTrainingManifest } from "../src/lib/train.mjs";
+import {
+  buildGemma4E2BFullManifest,
+  buildTrainingCommand,
+  buildTrainingManifest,
+} from "../src/lib/train.mjs";
 
 test("buildTrainingManifest keeps core training metadata", () => {
   const manifest = buildTrainingManifest({
@@ -34,4 +38,17 @@ test("buildTrainingCommand points at the bundled python trainer", () => {
     "--config",
     "/tmp/train-config.json",
   ]);
+});
+
+test("buildGemma4E2BFullManifest pins model repo and full training mode", () => {
+  const manifest = buildGemma4E2BFullManifest({
+    datasetId: "dataset-1",
+    datasetIds: ["dataset-1"],
+    datasetPath: "/tmp/merged-dataset.jsonl",
+    outputDir: "/tmp/out",
+  });
+
+  assert.equal(manifest.modelRepo, "google/gemma-4-E2B");
+  assert.equal(manifest.trainingMethod, "full");
+  assert.deepEqual(manifest.datasetIds, ["dataset-1"]);
 });
