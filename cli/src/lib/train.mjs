@@ -30,7 +30,7 @@ export function buildTrainingManifest(input) {
 export function buildGemma4E2BFullManifest(input) {
   return buildTrainingManifest({
     ...input,
-    modelRepo: "google/gemma-4-E2B",
+    modelRepo: input.modelRepo ?? "google/gemma-4-E2B",
     trainingMethod: "full",
     learningRate: input.learningRate ?? 0.00005,
     gradientAccumulationSteps: input.gradientAccumulationSteps ?? 8,
@@ -41,7 +41,7 @@ export function buildGemma4E2BFullManifest(input) {
 export function buildGemma2BItLoraManifest(input) {
   return buildTrainingManifest({
     ...input,
-    modelRepo: "google/gemma-2b-it",
+    modelRepo: input.modelRepo ?? "google/gemma-2b-it",
     trainingMethod: "lora",
     numTrainEpochs: input.numTrainEpochs ?? 1,
     perDeviceTrainBatchSize: input.perDeviceTrainBatchSize ?? 1,

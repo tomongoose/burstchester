@@ -536,6 +536,9 @@ async function handleTrainGemma4E2BFull(flags) {
   const datasetId = datasetIds[0];
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma4-e2b-full-${datasetId}`)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+  const modelRepo = typeof flags["model-repo"] === "string" && flags["model-repo"].trim()
+    ? flags["model-repo"].trim()
+    : "google/gemma-4-E2B";
 
   const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
@@ -553,6 +556,7 @@ async function handleTrainGemma4E2BFull(flags) {
     datasetId,
     datasetIds,
     datasetPath: prepared.mergedDatasetPath,
+    modelRepo,
     outputDir: join(workspace, "output"),
     numTrainEpochs: flags.epochs,
     perDeviceTrainBatchSize: flags["batch-size"],
@@ -586,6 +590,9 @@ async function handleTrainGemma2BItLora(flags) {
   const datasetId = datasetIds[0];
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma-2b-it-lora-${datasetId}`)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+  const modelRepo = typeof flags["model-repo"] === "string" && flags["model-repo"].trim()
+    ? flags["model-repo"].trim()
+    : "google/gemma-2b-it";
 
   const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
@@ -603,6 +610,7 @@ async function handleTrainGemma2BItLora(flags) {
     datasetId,
     datasetIds,
     datasetPath: prepared.mergedDatasetPath,
+    modelRepo,
     outputDir: join(workspace, "output"),
     numTrainEpochs: flags.epochs,
     perDeviceTrainBatchSize: flags["batch-size"],
@@ -651,8 +659,8 @@ function printUsage() {
       "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
       "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
-      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--workspace <dir>] [--preflight-only]",
-      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id>] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );

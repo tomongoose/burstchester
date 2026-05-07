@@ -15,7 +15,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config: dict[str, Any] = load_config(args.config)
-    config["modelRepo"] = "google/gemma-2b-it"
+    config["modelRepo"] = str(config.get("modelRepo") or "google/gemma-2b-it")
     config["trainingMethod"] = "lora"
     config["maxSeqLength"] = int(config.get("maxSeqLength", 128))
     config["loraRank"] = int(config.get("loraRank", 8))

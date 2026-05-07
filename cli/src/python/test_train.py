@@ -1,10 +1,14 @@
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import train
+import train_gemma_2b_it_lora
+import train_gemma4_e2b_full
 
 
 class _CudaAvailable:
@@ -57,6 +61,53 @@ class TrainNotebookParityTests(unittest.TestCase):
                 "torch_dtype": "float16",
             },
         )
+
+
+class Gemma4WrapperTests(unittest.TestCase):
+    def test_wrapper_preserves_explicit_model_repo(self):
+        captured = {}
+
+        with mock.patch.object(
+            train_gemma4_e2b_full,
+            "parse_args",
+            return_value=SimpleNamespace(config="/tmp/train-config.json"),
+        ), mock.patch.object(
+            train_gemma4_e2b_full,
+            "load_config",
+            return_value={"modelRepo": "google/gemma-3-4b-it"},
+        ), mock.patch.object(
+            train_gemma4_e2b_full,
+            "train_from_config",
+            side_effect=lambda config: captured.update(config),
+        ):
+            train_gemma4_e2b_full.main()
+
+        self.assertEqual(captured["modelRepo"], "google/gemma-3-4b-it")
+        self.assertEqual(captured["trainingMethod"], "full")
+
+
+class GemmaLoraWrapperTests(unittest.TestCase):
+    def test_wrapper_preserves_explicit_model_repo(self):
+        captured = {}
+
+        with mock.patch.object(
+            train_gemma_2b_it_lora,
+            "parse_args",
+            return_value=SimpleNamespace(config="/tmp/train-config.json"),
+        ), mock.patch.object(
+            train_gemma_2b_it_lora,
+            "load_config",
+            return_value={"modelRepo": "google/gemma-3-1b-it"},
+        ), mock.patch.object(
+            train_gemma_2b_it_lora,
+            "train_from_config",
+            side_effect=lambda config: captured.update(config),
+        ):
+            train_gemma_2b_it_lora.main()
+
+        self.assertEqual(captured["modelRepo"], "google/gemma-3-1b-it")
+        self.assertEqual(captured["trainingMethod"], "lora")
+        self.assertEqual(captured["maxSeqLength"], 128)
 
     def test_gemma_lora_falls_back_to_float32_without_cuda(self):
         self.assertEqual(

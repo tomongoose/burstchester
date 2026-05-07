@@ -56,6 +56,19 @@ test("buildGemma4E2BFullManifest pins model repo and full training mode", () => 
   assert.deepEqual(manifest.datasetIds, ["dataset-1"]);
 });
 
+test("buildGemma4E2BFullManifest allows an explicit base model override", () => {
+  const manifest = buildGemma4E2BFullManifest({
+    datasetId: "dataset-1",
+    datasetIds: ["dataset-1"],
+    datasetPath: "/tmp/merged-dataset.jsonl",
+    outputDir: "/tmp/out",
+    modelRepo: "google/gemma-3-4b-it",
+  });
+
+  assert.equal(manifest.modelRepo, "google/gemma-3-4b-it");
+  assert.equal(manifest.trainingMethod, "full");
+});
+
 test("buildGemma2BItLoraManifest pins model repo and notebook-style lora defaults", () => {
   const manifest = buildGemma2BItLoraManifest({
     datasetId: "dataset-1",
@@ -74,6 +87,20 @@ test("buildGemma2BItLoraManifest pins model repo and notebook-style lora default
   assert.equal(manifest.gradientAccumulationSteps, 1);
   assert.equal(manifest.numTrainEpochs, 1);
   assert.deepEqual(manifest.datasetIds, ["dataset-1"]);
+});
+
+test("buildGemma2BItLoraManifest allows an explicit base model override", () => {
+  const manifest = buildGemma2BItLoraManifest({
+    datasetId: "dataset-1",
+    datasetIds: ["dataset-1"],
+    datasetPath: "/tmp/merged-dataset.jsonl",
+    outputDir: "/tmp/out",
+    modelRepo: "google/gemma-3-1b-it",
+  });
+
+  assert.equal(manifest.modelRepo, "google/gemma-3-1b-it");
+  assert.equal(manifest.trainingMethod, "lora");
+  assert.equal(manifest.maxSeqLength, 128);
 });
 
 test("defaultGemma2BItLoraTrainerScriptPath points at the dedicated wrapper", () => {

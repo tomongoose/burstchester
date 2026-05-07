@@ -186,6 +186,14 @@ node src/cli.mjs train --model-repo Qwen/Qwen3-0.6B --preflight-only
 node src/cli.mjs train-gemma4-e2b-full --dataset-id legal-ko
 ```
 
+기본 베이스 모델은 `google/gemma-4-E2B`지만, 필요하면 다른 Hugging Face repo를 넘길 수 있다.
+
+```bash
+node src/cli.mjs train-gemma4-e2b-full \
+  --dataset-id legal-ko \
+  --model-repo google/gemma-3-4b-it
+```
+
 또는 저장된 dataset list 전체를 그대로 사용할 수 있다.
 
 ```bash
@@ -198,7 +206,8 @@ node src/cli.mjs train-gemma4-e2b-full
 - 각 dataset ZIP 다운로드
 - `dataset.jsonl` 병합
 - Python wrapper `src/python/train_gemma4_e2b_full.py` 실행
-- 내부적으로 `trainingMethod=full`, `modelRepo=google/gemma-4-E2B`를 강제
+- 내부적으로 `trainingMethod=full`을 강제
+- `--model-repo`가 없으면 `google/gemma-4-E2B`를 기본값으로 사용
 
 ### Gemma 2B IT LoRA fine-tuning
 
@@ -206,6 +215,14 @@ node src/cli.mjs train-gemma4-e2b-full
 
 ```bash
 node src/cli.mjs train-gemma-2b-it-lora --dataset-id legal-ko
+```
+
+기본 베이스 모델은 `google/gemma-2b-it`지만, 필요하면 다른 Hugging Face repo를 넘길 수 있다.
+
+```bash
+node src/cli.mjs train-gemma-2b-it-lora \
+  --dataset-id legal-ko \
+  --model-repo google/gemma-3-1b-it
 ```
 
 또는 저장된 dataset list 전체를 그대로 사용할 수 있다.
@@ -220,7 +237,8 @@ node src/cli.mjs train-gemma-2b-it-lora
 - 각 dataset ZIP 다운로드
 - `dataset.jsonl` 병합
 - Python wrapper `src/python/train_gemma_2b_it_lora.py` 실행
-- 내부적으로 `trainingMethod=lora`, `modelRepo=google/gemma-2b-it`를 강제
+- 내부적으로 `trainingMethod=lora`를 강제
+- `--model-repo`가 없으면 `google/gemma-2b-it`를 기본값으로 사용
 - 기본값으로 `maxSeqLength=128`, `loraRank=8`, `loraAlpha=16`, `loraDropout=0.05` 적용
 
 ## 학습 전제조건
