@@ -1,0 +1,562 @@
+#!/usr/bin/env node
+
+import { readFile, writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { parseArgs, requiredFlag } from "./lib/args.mjs";
+import {
+  fetchDatasetPackageMetadata,
+  preflightDatasetDownloads,
+  uploadDebugDataset,
+} from "./lib/backend.mjs";
+import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
+import { parseDatasetIdFile, serializeDatasetIds } from "./lib/dataset-list.mjs";
+import { downloadToFile, ensureDir, mergeTextFiles } from "./lib/download.mjs";
+import {
+  isSessionExpired,
+  refreshFirebaseSession,
+  signInAnonymously,
+} from "./lib/firebase-auth.mjs";
+import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
+import { upsertCliProfile } from "./lib/profile.mjs";
+import {
+  addDatasetId,
+  clearDatasetIds,
+  clearSession,
+  loadSession,
+  normalizeDatasetId,
+  removeDatasetId,
+  saveSession,
+} from "./lib/session.mjs";
+import { buildTrainingManifest, runTraining } from "./lib/train.mjs";
+import { extractStoredZip } from "./lib/zip.mjs";
+
+const ROOT_DIR = resolve(fileURLToPath(new URL("..", import.meta.url)));
+
+async function main(argv) {
+  const { command, flags, positionals } = parseArgs(argv);
+
+  switch (command) {
+    case "auth":
+      await handleAuth(flags, positionals);
+      return;
+    case "download-dataset":
+      await handleDownloadDataset(flags);
+      return;
+    case "download-model":
+      await handleDownloadModel(flags);
+      return;
+    case "dataset-list":
+      await handleDatasetList(flags, positionals);
+      return;
+    case "upload-test-dataset":
+      await handleUploadTestDataset(flags);
+      return;
+    case "train":
+      await handleTrain(flags);
+      return;
+    default:
+      printUsage();
+  }
+}
+
+async function handleDatasetList(flags, positionals) {
+  const subcommand = positionals[0] || "show";
+  const session = (await loadSession()) ?? {};
+  const currentIds = Array.isArray(session.datasetIds) ? session.datasetIds : [];
+
+  switch (subcommand) {
+    case "add": {
+      const datasetId = requiredFlag(flags, "dataset-id");
+      session.datasetIds = addDatasetId(currentIds, datasetId);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "remove": {
+      const datasetId = requiredFlag(flags, "dataset-id");
+      session.datasetIds = removeDatasetId(currentIds, datasetId);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "clear": {
+      session.datasetIds = clearDatasetIds(currentIds);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: [] }, null, 2)}\n`);
+      return;
+    }
+    case "import": {
+      const filePath = requiredFlag(flags, "file");
+      const text = await readFile(resolve(filePath), "utf8");
+      session.datasetIds = parseDatasetIdFile(text);
+      await saveSession(session);
+      process.stdout.write(`${JSON.stringify({ ok: true, imported: true, datasetIds: session.datasetIds }, null, 2)}\n`);
+      return;
+    }
+    case "export": {
+      const filePath = requiredFlag(flags, "file");
+      const text = serializeDatasetIds(currentIds);
+      await writeFile(resolve(filePath), text, "utf8");
+      process.stdout.write(`${JSON.stringify({ ok: true, exported: true, file: resolve(filePath), datasetIds: currentIds }, null, 2)}\n`);
+      return;
+    }
+    case "show": {
+      process.stdout.write(`${JSON.stringify({ ok: true, datasetIds: currentIds }, null, 2)}\n`);
+      return;
+    }
+    default:
+      throw new Error(`Unknown dataset-list subcommand: ${subcommand}`);
+  }
+}
+
+async function handleAuth(flags, positionals) {
+  const subcommand = positionals[0] || "status";
+
+  switch (subcommand) {
+    case "status":
+      await handleAuthStatus(flags);
+      return;
+    case "huggingface":
+      await handleAuthHuggingFace(flags);
+      return;
+    case "profile":
+      await handleAuthProfile(flags);
+      return;
+    case "logout":
+      await clearSession();
+      process.stdout.write(`${JSON.stringify({ ok: true, signedOut: true }, null, 2)}\n`);
+      return;
+    default:
+      throw new Error(`Unknown auth subcommand: ${subcommand}`);
+  }
+}
+
+async function handleAuthStatus(flags) {
+  let session = await loadSession();
+  const apiKey = resolveConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+
+  if (!session) {
+    process.stdout.write(`${JSON.stringify({ signedIn: false }, null, 2)}\n`);
+    return;
+  }
+
+  if (apiKey && isSessionExpired(session)) {
+    session = {
+      ...session,
+      ...await refreshFirebaseSession({
+        apiKey,
+        refreshToken: session.refreshToken,
+      }),
+    };
+    await saveSession(session);
+  }
+
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        signedIn: true,
+        userId: session.userId,
+        isAnonymous: Boolean(session.isAnonymous),
+        providerId: session.providerId,
+        email: session.email || "",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+async function handleAuthHuggingFace(flags) {
+  const session = (await loadSession()) ?? {};
+
+  if (flags.clear === true) {
+    delete session.huggingFaceToken;
+    await saveSession(session);
+    process.stdout.write(`${JSON.stringify({ ok: true, cleared: true }, null, 2)}\n`);
+    return;
+  }
+
+  let token = typeof flags.token === "string" ? flags.token : "";
+  if (!token.trim()) {
+    token = await promptForToken("Hugging Face token: ");
+  }
+
+  const normalized = normalizeLocalToken(token);
+  if (!normalized) {
+    throw new Error("Hugging Face token must not be empty.");
+  }
+
+  session.huggingFaceToken = normalized;
+  await saveSession(session);
+  process.stdout.write(
+    `${JSON.stringify({ ok: true, stored: true, tokenPreview: `${normalized.slice(0, 6)}...` }, null, 2)}\n`,
+  );
+}
+
+async function handleAuthProfile(flags) {
+  const apiKey = requiredConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    "api-key",
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+  const displayName = requiredFlag(flags, "display-name");
+  const photoURL = optionalConfig(flags["photo-url"], process.env.BURSTCHESTER_PROFILE_PHOTO_URL);
+  const profileUrl = resolveConfig(
+    flags["profile-url"],
+    process.env.BURSTCHESTER_PROFILE_URL,
+    BURSTCHESTER_DEFAULTS.profileUrl,
+  );
+
+  let session = await loadSession();
+  if (!session) {
+    session = await signInAnonymously({ apiKey });
+  } else if (isSessionExpired(session)) {
+    session = {
+      ...session,
+      ...await refreshFirebaseSession({
+        apiKey,
+        refreshToken: session.refreshToken,
+      }),
+    };
+  }
+
+  const profile = await upsertCliProfile({
+    profileUrl,
+    idToken: session.idToken,
+    displayName,
+    photoURL,
+  });
+
+  session.displayName = profile.displayName;
+  session.photoURL = profile.photoURL || null;
+  session.email = profile.email || session.email || "";
+  await saveSession(session);
+
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        ok: true,
+        upgraded: false,
+        auth: {
+          userId: session.userId,
+          isAnonymous: session.isAnonymous,
+          providerId: session.providerId,
+          email: session.email || "",
+        },
+        profile,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+async function handleDownloadDataset(flags) {
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
+  const datasetId = requiredFlag(flags, "dataset-id");
+  const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
+  const extract = flags.extract !== "false";
+
+  const metadata = await fetchDatasetPackageMetadata({
+    endpointUrl,
+    datasetId,
+  });
+
+  await ensureDir(outDir);
+  const zipPath = join(outDir, `${datasetId}.zip`);
+  await downloadToFile({
+    url: metadata.url,
+    destination: zipPath,
+  });
+
+  let extractedDir = null;
+  if (extract) {
+    extractedDir = join(outDir, datasetId);
+    const archive = await readFile(zipPath);
+    await extractStoredZip(archive, extractedDir);
+  }
+
+  process.stdout.write(
+    `${JSON.stringify({ datasetId, zipPath, extractedDir, downloadUrl: metadata.url }, null, 2)}\n`,
+  );
+}
+
+async function handleDownloadModel(flags) {
+  const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "models")));
+  const url = typeof flags.url === "string" ? flags.url : undefined;
+  const repo = typeof flags.repo === "string" ? flags.repo : undefined;
+  const file = typeof flags.file === "string" ? flags.file : undefined;
+  const revision = typeof flags.revision === "string" ? flags.revision : "main";
+  const session = await loadSession();
+
+  if (!url && !(repo && file)) {
+    throw new Error("download-model requires --url or --repo with --file");
+  }
+
+  const result = await downloadHuggingFaceFile({
+    url,
+    repo,
+    file,
+    revision,
+    outDir,
+    token: resolveDownloadToken(flags, session),
+  });
+
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+}
+
+async function handleUploadTestDataset(flags) {
+  let session = await loadSession();
+  if (!session) {
+    throw new Error("No CLI session found. Run `auth profile --display-name ...` first.");
+  }
+
+  const apiKey = resolveConfig(
+    flags["api-key"],
+    process.env.BURSTCHESTER_FIREBASE_API_KEY,
+    BURSTCHESTER_DEFAULTS.firebaseConfig.apiKey,
+  );
+  if (isSessionExpired(session)) {
+    session = {
+      ...session,
+      ...await refreshFirebaseSession({
+        apiKey,
+        refreshToken: session.refreshToken,
+      }),
+    };
+    await saveSession(session);
+  }
+
+  const endpointUrl = resolveConfig(
+    flags["upload-url"],
+    process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
+    BURSTCHESTER_DEFAULTS.debugUploadUrl,
+  );
+  const filePath = requiredFlag(flags, "file");
+  const filename = typeof flags.filename === "string" && flags.filename.trim()
+    ? flags.filename.trim()
+    : filePath.split("/").at(-1) || "debug.jsonl";
+  const content = await readFile(resolve(filePath), "utf8");
+
+  const dataset = await uploadDebugDataset({
+    endpointUrl,
+    idToken: session.idToken,
+    filename,
+    content,
+    metadata: {
+      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      tags: typeof flags.tags === "string" ? flags.tags : undefined,
+      baseModelHint: typeof flags["base-model-hint"] === "string" ? flags["base-model-hint"] : undefined,
+      taskType: typeof flags["task-type"] === "string" ? flags["task-type"] : undefined,
+      language: typeof flags.language === "string" ? flags.language : undefined,
+      license: typeof flags.license === "string" ? flags.license : undefined,
+      sourceModel: typeof flags["source-model"] === "string" ? flags["source-model"] : undefined,
+      outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
+    },
+  });
+
+  process.stdout.write(`${JSON.stringify({ ok: true, dataset }, null, 2)}\n`);
+}
+
+async function handleTrain(flags) {
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
+  const session = await loadSession();
+  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetId = datasetIds[0];
+  const modelRepo = requiredFlag(flags, "model-repo");
+  const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
+  const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+  const trainingMethod = typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora";
+
+  await ensureDir(workspace);
+  const preflight = await preflightDatasetDownloads({
+    endpointUrl,
+    datasetIds,
+  });
+
+  if (flags["preflight-only"] === true) {
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight }, null, 2)}\n`);
+    return;
+  }
+
+  if (preflight.summary.failedCount > 0) {
+    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
+  }
+
+  const mergedParts = [];
+
+  for (const currentDatasetId of datasetIds) {
+    const metadata = await fetchDatasetPackageMetadata({
+      endpointUrl,
+      datasetId: currentDatasetId,
+    });
+
+    const zipPath = join(workspace, `${currentDatasetId}.zip`);
+    await downloadToFile({
+      url: metadata.url,
+      destination: zipPath,
+    });
+
+    const datasetDir = join(workspace, "datasets", currentDatasetId);
+    const archive = await readFile(zipPath);
+    await extractStoredZip(archive, datasetDir);
+    mergedParts.push(join(datasetDir, "dataset.jsonl"));
+  }
+
+  const mergedDatasetPath = await mergeTextFiles(
+    mergedParts,
+    join(workspace, "merged-dataset.jsonl"),
+  );
+
+  const manifest = buildTrainingManifest({
+    datasetId,
+    datasetIds,
+    datasetPath: mergedDatasetPath,
+    modelRepo,
+    outputDir: join(workspace, "output"),
+    trainingMethod,
+    numTrainEpochs: flags.epochs,
+    perDeviceTrainBatchSize: flags["batch-size"],
+    gradientAccumulationSteps: flags["grad-accum"],
+    learningRate: flags["learning-rate"],
+    maxSeqLength: flags["max-seq-length"],
+    loraRank: flags["lora-rank"],
+    loraAlpha: flags["lora-alpha"],
+    loraDropout: flags["lora-dropout"],
+    loggingSteps: flags["logging-steps"],
+    saveSteps: flags["save-steps"],
+  });
+
+  const result = await runTraining({
+    manifest,
+    workDir: workspace,
+    pythonBin,
+  });
+
+  process.stdout.write(
+    `${JSON.stringify({ datasetId, modelRepo, workspace, outputDir: manifest.outputDir, ...result }, null, 2)}\n`,
+  );
+}
+
+function printUsage() {
+  process.stdout.write(
+    [
+      "Burstchester CLI",
+      "",
+      "Commands:",
+      "  auth status",
+      "  auth huggingface [--token <hf_token>] [--clear]",
+      "  auth profile --display-name <name> [--api-key <firebase-key>] [--profile-url <url>]",
+      "  auth logout",
+      "  dataset-list add --dataset-id <id>",
+      "  dataset-list remove --dataset-id <id>",
+      "  dataset-list show",
+      "  dataset-list clear",
+      "  dataset-list import --file <path>",
+      "  dataset-list export --file <path>",
+      "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
+      "  download-model --url <hf-url> [--out-dir <dir>]",
+      "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
+      "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
+      "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
+      "",
+    ].join("\n"),
+  );
+}
+
+main(process.argv.slice(2)).catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+});
+
+function requiredConfig(flagValue, envValue, name, defaultValue = "") {
+  const value = resolveConfig(flagValue, envValue, defaultValue);
+  if (!value) {
+    throw new Error(`Missing required flag or env for ${name}`);
+  }
+
+  return value;
+}
+
+function optionalConfig(flagValue, envValue, defaultValue = "") {
+  const value = resolveConfig(flagValue, envValue, defaultValue);
+  return value || null;
+}
+
+function resolveConfig(flagValue, envValue, defaultValue = "") {
+  if (typeof flagValue === "string" && flagValue.trim()) {
+    return flagValue.trim();
+  }
+
+  if (typeof envValue === "string" && envValue.trim()) {
+    return envValue.trim();
+  }
+
+  if (typeof defaultValue === "string" && defaultValue.trim()) {
+    return defaultValue.trim();
+  }
+
+  return "";
+}
+
+function resolveDownloadToken(flags, session) {
+  return (
+    normalizeLocalToken(typeof flags.token === "string" ? flags.token : "")
+    || normalizeLocalToken(session?.huggingFaceToken)
+    || normalizeLocalToken(process.env.HF_TOKEN)
+    || normalizeLocalToken(process.env.HUGGING_FACE_HUB_TOKEN)
+    || ""
+  );
+}
+
+function normalizeLocalToken(token) {
+  return typeof token === "string" && token.trim() ? token.trim() : null;
+}
+
+async function promptForToken(prompt) {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    return await rl.question(prompt);
+  } finally {
+    rl.close();
+  }
+}
+
+function resolveTrainingDatasetIds(flags, session) {
+  const explicit = normalizeDatasetId(typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : "");
+  if (explicit) {
+    return [explicit];
+  }
+
+  const stored = Array.isArray(session?.datasetIds)
+    ? session.datasetIds
+      .map((value) => normalizeDatasetId(value))
+      .filter(Boolean)
+    : [];
+  if (stored.length > 0) {
+    return stored;
+  }
+
+  throw new Error("No dataset ids available. Pass --dataset-id or add ids with `dataset-list add`.");
+}
