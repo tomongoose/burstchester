@@ -14,6 +14,7 @@ import {
 } from "./lib/backend.mjs";
 import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
 import { parseDatasetIdFile, serializeDatasetIds } from "./lib/dataset-list.mjs";
+import { resolveDatasetIdsInput } from "./lib/dataset-list-source.mjs";
 import { downloadToFile, ensureDir, mergeTextFiles } from "./lib/download.mjs";
 import {
   isSessionExpired,
@@ -476,7 +477,7 @@ async function handleTrain(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const session = await loadSession();
-  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
   const datasetId = datasetIds[0];
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
@@ -532,7 +533,7 @@ async function handleTrainGemma4E2BFull(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const session = await loadSession();
-  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
   const datasetId = datasetIds[0];
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma4-e2b-full-${datasetId}`)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
@@ -586,7 +587,7 @@ async function handleTrainGemma2BItLora(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const session = await loadSession();
-  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
   const datasetId = datasetIds[0];
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma-2b-it-lora-${datasetId}`)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
@@ -658,9 +659,9 @@ function printUsage() {
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
       "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
-      "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
-      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
-      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id>] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
+      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );
@@ -725,24 +726,6 @@ async function promptForToken(prompt) {
   } finally {
     rl.close();
   }
-}
-
-function resolveTrainingDatasetIds(flags, session) {
-  const explicit = normalizeDatasetId(typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : "");
-  if (explicit) {
-    return [explicit];
-  }
-
-  const stored = Array.isArray(session?.datasetIds)
-    ? session.datasetIds
-      .map((value) => normalizeDatasetId(value))
-      .filter(Boolean)
-    : [];
-  if (stored.length > 0) {
-    return stored;
-  }
-
-  throw new Error("No dataset ids available. Pass --dataset-id or add ids with `dataset-list add`.");
 }
 
 async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, preflightOnly, workspace }) {

@@ -4,9 +4,15 @@ import { DatasetCard } from "./DatasetCard";
 
 interface DatasetGridProps {
   readonly summaries: readonly DatasetSummary[];
+  readonly selectedDatasetIds: readonly string[];
+  readonly onToggleSelect: (datasetId: string) => void;
 }
 
-export function DatasetGrid({ summaries }: DatasetGridProps): JSX.Element {
+export function DatasetGrid({
+  summaries,
+  selectedDatasetIds,
+  onToggleSelect,
+}: DatasetGridProps): JSX.Element {
   if (summaries.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low p-xl text-center font-body text-body-md text-on-surface-variant">
@@ -21,7 +27,11 @@ export function DatasetGrid({ summaries }: DatasetGridProps): JSX.Element {
     >
       {summaries.map((summary) => (
         <li key={summary.id} className="h-full">
-          <DatasetCard summary={summary} />
+          <DatasetCard
+            summary={summary}
+            selected={selectedDatasetIds.includes(summary.id)}
+            onToggleSelect={onToggleSelect}
+          />
         </li>
       ))}
     </ul>

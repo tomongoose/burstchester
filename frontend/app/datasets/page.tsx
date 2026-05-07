@@ -6,6 +6,7 @@ import { useState } from "react";
 import { CategoryFilter } from "@/components/datasets/CategoryFilter";
 import { DatasetDetailPanel } from "@/components/datasets/DatasetDetailPanel";
 import { DatasetGrid } from "@/components/datasets/DatasetGrid";
+import { DatasetSelectionTray } from "@/components/datasets/DatasetSelectionTray";
 import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SearchFilter } from "@/lib/domain/search-filter";
@@ -26,6 +27,9 @@ function DatasetsPageContent() {
   const selectedDatasetId = searchParams.get("dataset") ?? "";
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
   const [sort, setSort] = useState<SortOrder>("popular");
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState<readonly string[]>(
+    [],
+  );
   const { summaries, loading } = useDatasetSearch(filter, sort);
   const detailRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,6 +40,14 @@ function DatasetsPageContent() {
       behavior: "smooth",
     });
   }, [selectedDatasetId]);
+
+  function handleToggleDatasetSelection(datasetId: string): void {
+    setSelectedDatasetIds((current) =>
+      current.includes(datasetId)
+        ? current.filter((value) => value !== datasetId)
+        : [...current, datasetId],
+    );
+  }
 
   return (
     <>
@@ -83,11 +95,16 @@ function DatasetsPageContent() {
                 ))}
               </ul>
             ) : (
-              <DatasetGrid summaries={summaries} />
+              <DatasetGrid
+                summaries={summaries}
+                selectedDatasetIds={selectedDatasetIds}
+                onToggleSelect={handleToggleDatasetSelection}
+              />
             )}
           </section>
         </div>
       </main>
+      <DatasetSelectionTray selectedDatasetIds={selectedDatasetIds} />
       <SiteFooter />
     </>
   );
