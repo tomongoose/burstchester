@@ -64,3 +64,9 @@ backend/lib/
 # Per-subproject ignores live in:
 #   frontend/.gitignore (Next.js)
 #   backend/.gitignore  (Cloud Functions)
+
+# Local LLM sandbox
+/sandbox/gemma3n-e2b-ollama/models/
+/sandbox/gemma3n-e2b-ollama/logs/
+/sandbox/gemma3n-e2b-ollama/home/
+/sandbox/gemma3n-e2b-ollama/*.pid

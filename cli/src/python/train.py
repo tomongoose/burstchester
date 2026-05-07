@@ -21,6 +21,7 @@ def import_training_stack(training_method: str):
     try:
         import torch
         from transformers import (
+            AutoProcessor,
             AutoModelForCausalLM,
             AutoTokenizer,
             BitsAndBytesConfig,
@@ -47,6 +48,7 @@ def import_training_stack(training_method: str):
 
     return {
         "torch": torch,
+        "AutoProcessor": AutoProcessor,
         "AutoModelForCausalLM": AutoModelForCausalLM,
         "AutoTokenizer": AutoTokenizer,
         "BitsAndBytesConfig": BitsAndBytesConfig,
@@ -216,9 +218,14 @@ def build_model(config: dict[str, Any], stack: dict[str, Any]):
 def main() -> None:
     args = parse_args()
     config = load_config(args.config)
+    train_from_config(config)
+
+
+def train_from_config(config: dict[str, Any]) -> None:
     stack = import_training_stack(config["trainingMethod"])
 
     torch = stack["torch"]
+    AutoProcessor = stack["AutoProcessor"]
     AutoTokenizer = stack["AutoTokenizer"]
     Trainer = stack["Trainer"]
     TrainingArguments = stack["TrainingArguments"]
@@ -227,7 +234,7 @@ def main() -> None:
     output_dir = Path(config["outputDir"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(config["modelRepo"], trust_remote_code=True)
+    tokenizer = load_tokenizer(config["modelRepo"], AutoTokenizer, AutoProcessor)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token or tokenizer.unk_token
     tokenizer.padding_side = "right"
@@ -270,6 +277,33 @@ def main() -> None:
     trainer.train()
     trainer.save_model(str(output_dir))
     tokenizer.save_pretrained(str(output_dir))
+
+
+def load_tokenizer(model_repo: str, auto_tokenizer, auto_processor):
+    last_error: Exception | None = None
+
+    try:
+        processor = auto_processor.from_pretrained(model_repo, trust_remote_code=True)
+        if hasattr(processor, "tokenizer") and processor.tokenizer is not None:
+            return processor.tokenizer
+    except Exception as error:
+        last_error = error
+
+    try:
+        return auto_tokenizer.from_pretrained(model_repo, trust_remote_code=True)
+    except Exception as error:
+        second_error = error
+
+    try:
+        return auto_tokenizer.from_pretrained(
+            model_repo,
+            trust_remote_code=True,
+            use_fast=False,
+        )
+    except Exception as error:
+        if last_error is not None:
+            raise error from last_error
+        raise error from second_error
 
 
 if __name__ == "__main__":
