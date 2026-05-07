@@ -97,7 +97,8 @@ describe("prepareDownloadCore", () => {
         saveArchive: async (path, bytes) => {
           writes.push({ path, bytes });
         },
-        getSignedUrl: async (path) => `https://signed.example/${path}`,
+        getSignedUrl: async (path, filename) =>
+          `https://signed.example/${path}?filename=${filename}`,
         setZipPath: async () => {},
         incrementDownloadStats: async () => {},
       },
@@ -106,7 +107,7 @@ describe("prepareDownloadCore", () => {
 
     expect(result.cached).toBe(false);
     expect(result.zipPath).toBe("downloads/dataset-1/dataset-1.zip");
-    expect(result.url).toBe("https://signed.example/downloads/dataset-1/dataset-1.zip");
+    expect(result.url).toBe("https://signed.example/downloads/dataset-1/dataset-1.zip?filename=dataset-1.zip");
     expect(writes[0].path).toBe("downloads/dataset-1/dataset-1.zip");
   });
 });

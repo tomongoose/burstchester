@@ -21,6 +21,7 @@ export function createPrepareDatasetDownloadHandler(
     ) => Promise<PrepareDownloadResult> = (datasetId) =>
       executePrepareDownload(deps, datasetId),
   ): Promise<void> {
+    applyCors(response);
     const datasetId = readDatasetId(request);
     if (!datasetId) {
       response.status(400).json({
@@ -87,10 +88,11 @@ export async function executePrepareDownload(
           contentType: "application/zip",
         });
       },
-      getSignedUrl: async (path) => {
+      getSignedUrl: async (path, filename) => {
         const [url] = await deps.storage.bucket().file(path).getSignedUrl({
           action: "read",
           expires: signedUrlExpiresAt,
+          responseDisposition: `attachment; filename="${filename}"`,
         });
         return url;
       },
@@ -128,4 +130,10 @@ export async function executePrepareDownload(
     },
     now,
   );
+}
+
+function applyCors(response: Pick<Response, "setHeader">): void {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }

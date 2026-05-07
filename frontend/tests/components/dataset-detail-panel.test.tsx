@@ -20,14 +20,6 @@ vi.mock("@/components/datasets/DownloadButton", () => ({
   ),
 }));
 
-vi.mock("firebase/functions", () => ({
-  httpsCallable: vi.fn(),
-}));
-
-vi.mock("@/lib/firebase", () => ({
-  getFirebaseFunctions: vi.fn(),
-}));
-
 import { DatasetDetailPanel } from "@/components/datasets/DatasetDetailPanel";
 
 describe("DatasetDetailPanel", () => {

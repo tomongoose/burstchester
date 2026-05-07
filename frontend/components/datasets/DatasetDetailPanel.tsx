@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState, type JSX } from "react";
-import { httpsCallableFromURL } from "firebase/functions";
-import { getFirebaseFunctions } from "@/lib/firebase";
 import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import { resolveDatasetBackendBaseUrl } from "@/lib/datasets/list-datasets";
 import { buildDatasetJsonLd } from "@/lib/datasets/seo";
 import { fetchDatasetSummaryById } from "@/lib/datasets/get-dataset";
 import { DownloadButton } from "@/components/datasets/DownloadButton";
 import type { PrepareDownloadResponse } from "@/lib/datasets/download";
+import { requestPrepareDownloadHttp } from "@/lib/datasets/prepare-download-http";
 
 interface DatasetDetailPanelProps {
   readonly datasetId: string;
@@ -81,12 +80,12 @@ export function DatasetDetailPanel({
 
   const ld = buildDatasetJsonLd(summary);
   const callable = async (data: { datasetId: string }) => {
-    const fn = httpsCallableFromURL<{ datasetId: string }, PrepareDownloadResponse>(
-      getFirebaseFunctions(),
-      `${resolveDatasetBackendBaseUrl()}/prepareDownload`,
+    const result: PrepareDownloadResponse = await requestPrepareDownloadHttp(
+      data.datasetId,
+      fetch,
+      `${resolveDatasetBackendBaseUrl()}/prepareDatasetDownload`,
     );
-    const result = await fn(data);
-    return { data: result.data };
+    return { data: result };
   };
 
   return (
