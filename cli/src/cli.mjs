@@ -14,6 +14,7 @@ import {
 } from "./lib/backend.mjs";
 import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
 import { parseDatasetIdFile, serializeDatasetIds } from "./lib/dataset-list.mjs";
+import { resolveDatasetIdsInput } from "./lib/dataset-list-source.mjs";
 import { downloadToFile, ensureDir, mergeTextFiles } from "./lib/download.mjs";
 import {
   isSessionExpired,
@@ -39,8 +40,10 @@ import {
   saveSession,
 } from "./lib/session.mjs";
 import {
+  buildGemma2BItLoraManifest,
   buildGemma4E2BFullManifest,
   buildTrainingManifest,
+  defaultGemma2BItLoraTrainerScriptPath,
   defaultGemma4FullTrainerScriptPath,
   runTraining,
 } from "./lib/train.mjs";
@@ -78,6 +81,9 @@ async function main(argv) {
       return;
     case "train-gemma4-e2b-full":
       await handleTrainGemma4E2BFull(flags);
+      return;
+    case "train-gemma-2b-it-lora":
+      await handleTrainGemma2BItLora(flags);
       return;
     default:
       printUsage();
@@ -359,7 +365,6 @@ async function handleUploadTestDataset(flags) {
     filename,
     content,
     metadata: {
-      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
       tags: typeof flags.tags === "string" ? flags.tags : undefined,
@@ -451,7 +456,6 @@ async function handleUploadProxyLog(flags) {
     filename,
     content,
     metadata: {
-      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
       language: typeof flags.language === "string" ? flags.language : undefined,
       license: typeof flags.license === "string" ? flags.license : undefined,
       outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
@@ -471,57 +475,29 @@ async function handleTrain(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const session = await loadSession();
-  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
   const datasetId = datasetIds[0];
   const modelRepo = requiredFlag(flags, "model-repo");
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", datasetId)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
   const trainingMethod = typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora";
 
-  await ensureDir(workspace);
-  const preflight = await preflightDatasetDownloads({
-    endpointUrl,
+  const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
+    endpointUrl,
+    preflightOnly: flags["preflight-only"] === true,
+    workspace,
   });
 
   if (flags["preflight-only"] === true) {
-    process.stdout.write(`${JSON.stringify({ ok: true, preflight }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight: prepared.preflight }, null, 2)}\n`);
     return;
   }
-
-  if (preflight.summary.failedCount > 0) {
-    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
-  }
-
-  const mergedParts = [];
-
-  for (const currentDatasetId of datasetIds) {
-    const metadata = await fetchDatasetPackageMetadata({
-      endpointUrl,
-      datasetId: currentDatasetId,
-    });
-
-    const zipPath = join(workspace, `${currentDatasetId}.zip`);
-    await downloadToFile({
-      url: metadata.url,
-      destination: zipPath,
-    });
-
-    const datasetDir = join(workspace, "datasets", currentDatasetId);
-    const archive = await readFile(zipPath);
-    await extractStoredZip(archive, datasetDir);
-    mergedParts.push(join(datasetDir, "dataset.jsonl"));
-  }
-
-  const mergedDatasetPath = await mergeTextFiles(
-    mergedParts,
-    join(workspace, "merged-dataset.jsonl"),
-  );
 
   const manifest = buildTrainingManifest({
     datasetId,
     datasetIds,
-    datasetPath: mergedDatasetPath,
+    datasetPath: prepared.mergedDatasetPath,
     modelRepo,
     outputDir: join(workspace, "output"),
     trainingMethod,
@@ -555,55 +531,31 @@ async function handleTrainGemma4E2BFull(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const session = await loadSession();
-  const datasetIds = resolveTrainingDatasetIds(flags, session);
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
   const datasetId = datasetIds[0];
   const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma4-e2b-full-${datasetId}`)));
   const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+  const modelRepo = typeof flags["model-repo"] === "string" && flags["model-repo"].trim()
+    ? flags["model-repo"].trim()
+    : "google/gemma-4-E2B";
 
-  await ensureDir(workspace);
-  const preflight = await preflightDatasetDownloads({
-    endpointUrl,
+  const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
+    endpointUrl,
+    preflightOnly: flags["preflight-only"] === true,
+    workspace,
   });
 
   if (flags["preflight-only"] === true) {
-    process.stdout.write(`${JSON.stringify({ ok: true, preflight }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight: prepared.preflight }, null, 2)}\n`);
     return;
   }
-
-  if (preflight.summary.failedCount > 0) {
-    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
-  }
-
-  const mergedParts = [];
-
-  for (const currentDatasetId of datasetIds) {
-    const metadata = await fetchDatasetPackageMetadata({
-      endpointUrl,
-      datasetId: currentDatasetId,
-    });
-
-    const zipPath = join(workspace, `${currentDatasetId}.zip`);
-    await downloadToFile({
-      url: metadata.url,
-      destination: zipPath,
-    });
-
-    const datasetDir = join(workspace, "datasets", currentDatasetId);
-    const archive = await readFile(zipPath);
-    await extractStoredZip(archive, datasetDir);
-    mergedParts.push(join(datasetDir, "dataset.jsonl"));
-  }
-
-  const mergedDatasetPath = await mergeTextFiles(
-    mergedParts,
-    join(workspace, "merged-dataset.jsonl"),
-  );
 
   const manifest = buildGemma4E2BFullManifest({
     datasetId,
     datasetIds,
-    datasetPath: mergedDatasetPath,
+    datasetPath: prepared.mergedDatasetPath,
+    modelRepo,
     outputDir: join(workspace, "output"),
     numTrainEpochs: flags.epochs,
     perDeviceTrainBatchSize: flags["batch-size"],
@@ -619,6 +571,63 @@ async function handleTrainGemma4E2BFull(flags) {
     workDir: workspace,
     pythonBin,
     scriptPath: defaultGemma4FullTrainerScriptPath(),
+  });
+
+  process.stdout.write(
+    `${JSON.stringify({ datasetId, datasetIds, modelRepo: manifest.modelRepo, workspace, outputDir: manifest.outputDir, ...result }, null, 2)}\n`,
+  );
+}
+
+async function handleTrainGemma2BItLora(flags) {
+  const endpointUrl = resolveConfig(
+    flags["backend-url"],
+    process.env.BURSTCHESTER_BACKEND_URL,
+    BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
+  );
+  const session = await loadSession();
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
+  const datasetId = datasetIds[0];
+  const workspace = resolve(String(flags.workspace || join(ROOT_DIR, "artifacts", "training", `gemma-2b-it-lora-${datasetId}`)));
+  const pythonBin = typeof flags.python === "string" ? flags.python : "python3";
+  const modelRepo = typeof flags["model-repo"] === "string" && flags["model-repo"].trim()
+    ? flags["model-repo"].trim()
+    : "google/gemma-2b-it";
+
+  const prepared = await prepareMergedDatasetForTraining({
+    datasetIds,
+    endpointUrl,
+    preflightOnly: flags["preflight-only"] === true,
+    workspace,
+  });
+
+  if (flags["preflight-only"] === true) {
+    process.stdout.write(`${JSON.stringify({ ok: true, preflight: prepared.preflight }, null, 2)}\n`);
+    return;
+  }
+
+  const manifest = buildGemma2BItLoraManifest({
+    datasetId,
+    datasetIds,
+    datasetPath: prepared.mergedDatasetPath,
+    modelRepo,
+    outputDir: join(workspace, "output"),
+    numTrainEpochs: flags.epochs,
+    perDeviceTrainBatchSize: flags["batch-size"],
+    gradientAccumulationSteps: flags["grad-accum"],
+    learningRate: flags["learning-rate"],
+    maxSeqLength: flags["max-seq-length"],
+    loraRank: flags["lora-rank"],
+    loraAlpha: flags["lora-alpha"],
+    loraDropout: flags["lora-dropout"],
+    loggingSteps: flags["logging-steps"],
+    saveSteps: flags["save-steps"],
+  });
+
+  const result = await runTraining({
+    manifest,
+    workDir: workspace,
+    pythonBin,
+    scriptPath: defaultGemma2BItLoraTrainerScriptPath(),
   });
 
   process.stdout.write(
@@ -646,10 +655,11 @@ function printUsage() {
       "  download-model --url <hf-url> [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
-      "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
-      "  upload-proxy-log --file <path> --source-model <model> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
-      "  train [--backend-url <url>] [--dataset-id <id>] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
-      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id>] [--workspace <dir>] [--preflight-only]",
+      "  upload-test-dataset --file <path> [--title <title>] [--upload-url <url>]",
+      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--upload-url <url>]",
+      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );
@@ -716,22 +726,51 @@ async function promptForToken(prompt) {
   }
 }
 
-function resolveTrainingDatasetIds(flags, session) {
-  const explicit = normalizeDatasetId(typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : "");
-  if (explicit) {
-    return [explicit];
+async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, preflightOnly, workspace }) {
+  await ensureDir(workspace);
+  const preflight = await preflightDatasetDownloads({
+    endpointUrl,
+    datasetIds,
+  });
+
+  if (preflight.summary.failedCount > 0) {
+    throw new Error(`Dataset preflight failed for: ${preflight.summary.failedDatasetIds.join(", ")}`);
   }
 
-  const stored = Array.isArray(session?.datasetIds)
-    ? session.datasetIds
-      .map((value) => normalizeDatasetId(value))
-      .filter(Boolean)
-    : [];
-  if (stored.length > 0) {
-    return stored;
+  if (preflightOnly) {
+    return {
+      preflight,
+      mergedDatasetPath: null,
+    };
   }
 
-  throw new Error("No dataset ids available. Pass --dataset-id or add ids with `dataset-list add`.");
+  const mergedParts = [];
+
+  for (const currentDatasetId of datasetIds) {
+    const metadata = await fetchDatasetPackageMetadata({
+      endpointUrl,
+      datasetId: currentDatasetId,
+    });
+
+    const zipPath = join(workspace, `${currentDatasetId}.zip`);
+    await downloadToFile({
+      url: metadata.url,
+      destination: zipPath,
+    });
+
+    const datasetDir = join(workspace, "datasets", currentDatasetId);
+    const archive = await readFile(zipPath);
+    await extractStoredZip(archive, datasetDir);
+    mergedParts.push(join(datasetDir, "dataset.jsonl"));
+  }
+
+  return {
+    preflight,
+    mergedDatasetPath: await mergeTextFiles(
+      mergedParts,
+      join(workspace, "merged-dataset.jsonl"),
+    ),
+  };
 }
 
 async function loadActiveSessionForBackendWrite(flags) {

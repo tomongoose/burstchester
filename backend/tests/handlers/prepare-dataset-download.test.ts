@@ -4,7 +4,9 @@ import { createPrepareDatasetDownloadHandler } from "@/handlers/prepare-dataset-
 
 interface ResponseStub {
   statusCode: number;
+  headers: Record<string, string>;
   body: unknown;
+  setHeader(name: string, value: string): ResponseStub;
   status(code: number): ResponseStub;
   json(payload: unknown): ResponseStub;
 }
@@ -12,7 +14,12 @@ interface ResponseStub {
 function createResponse(): ResponseStub {
   return {
     statusCode: 200,
+    headers: {},
     body: undefined,
+    setHeader(name, value) {
+      this.headers[name] = value;
+      return this;
+    },
     status(code) {
       this.statusCode = code;
       return this;
@@ -66,6 +73,10 @@ describe("prepareDatasetDownloadHandler", () => {
     );
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
+    expect(response.headers["Access-Control-Allow-Headers"]).toBe(
+      "Content-Type, Authorization",
+    );
     expect(response.body).toEqual({
       ok: true,
       datasetId: "dataset-1",

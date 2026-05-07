@@ -41,10 +41,11 @@ export function createPrepareDownload(
               contentType: "application/zip",
             });
           },
-          getSignedUrl: async (path) => {
+          getSignedUrl: async (path, filename) => {
             const [url] = await deps.storage.bucket().file(path).getSignedUrl({
               action: "read",
               expires: signedUrlExpiresAt,
+              responseDisposition: `attachment; filename="${filename}"`,
             });
             return url;
           },

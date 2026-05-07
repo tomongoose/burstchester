@@ -166,9 +166,11 @@ def build_model(config: dict[str, Any], stack: dict[str, Any]):
     prepare_model_for_kbit_training = stack["prepare_model_for_kbit_training"]
 
     training_method = config["trainingMethod"]
-    common_kwargs = {
-        "trust_remote_code": True,
-    }
+    common_kwargs = resolve_model_load_kwargs(
+        model_repo=config["modelRepo"],
+        training_method=training_method,
+        torch_module=torch,
+    )
 
     if training_method == "qlora":
         try:
@@ -196,7 +198,7 @@ def build_model(config: dict[str, Any], stack: dict[str, Any]):
             lora_dropout=float(config["loraDropout"]),
             bias="none",
             task_type="CAUSAL_LM",
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+            target_modules=resolve_lora_target_modules(config["modelRepo"]),
         )
         return get_peft_model(model, peft_config)
 
@@ -208,11 +210,43 @@ def build_model(config: dict[str, Any], stack: dict[str, Any]):
             lora_dropout=float(config["loraDropout"]),
             bias="none",
             task_type="CAUSAL_LM",
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+            target_modules=resolve_lora_target_modules(config["modelRepo"]),
         )
         model = get_peft_model(model, peft_config)
 
     return model
+
+
+def resolve_lora_target_modules(model_repo: str) -> list[str]:
+    if is_gemma_model(model_repo):
+        return ["q_proj", "v_proj"]
+
+    return ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+
+def resolve_model_load_kwargs(
+    model_repo: str,
+    training_method: str,
+    torch_module,
+) -> dict[str, Any]:
+    common_kwargs: dict[str, Any] = {
+        "trust_remote_code": True,
+    }
+
+    if training_method == "qlora":
+        return common_kwargs
+
+    if is_gemma_model(model_repo):
+        common_kwargs["device_map"] = "auto"
+        common_kwargs["torch_dtype"] = (
+            torch_module.float16 if torch_module.cuda.is_available() else torch_module.float32
+        )
+
+    return common_kwargs
+
+
+def is_gemma_model(model_repo: str) -> bool:
+    return "gemma" in str(model_repo or "").lower()
 
 
 def main() -> None:

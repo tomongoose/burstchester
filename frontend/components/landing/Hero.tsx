@@ -3,62 +3,50 @@ import Link from "next/link";
 
 export function Hero(): JSX.Element {
   return (
-    <header className="relative overflow-hidden hero-gradient">
-      <div className="mx-auto max-w-container-max px-gutter pt-32 pb-xl">
-        <div className="grid items-center gap-xl lg:grid-cols-2">
-          <div className="space-y-lg">
-            <div className="inline-flex items-center gap-sm rounded-full border border-outline-variant/30 bg-surface-container px-3 py-1">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-              <span className="font-label text-label uppercase tracking-widest text-primary">
-                Community preview
-              </span>
-            </div>
-
-            <h1 className="font-h1 text-h1 max-w-xl text-on-surface">
-              Fine-tuning datasets,{" "}
-              <span className="text-primary">ready for Ollama.</span>
+    <header className="hero-gradient relative overflow-hidden">
+      <div className="mx-auto max-w-container-max px-gutter pb-20 pt-28 md:pt-32">
+        <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-gutter">
+          <div className="space-y-6 lg:col-span-7">
+            <h1 className="font-h1 text-[clamp(3rem,6vw,5.3rem)] leading-[0.98] tracking-[-0.04em] text-on-surface">
+              Fine-tune locally,
+              <br />
+              <span className="text-primary">Curated globally.</span>
             </h1>
 
-            <p className="font-body text-body-lg max-w-lg text-on-surface-variant">
-              Discover community-curated LLM datasets, train locally with the
-              bundled Colab notebook, and run the result with Ollama in three
-              simple steps.
+            <p className="max-w-2xl font-body text-body-lg text-on-surface-variant">
+              Burstchester provides the most refined, community-driven datasets
+              optimized for local LLMs. Scale your inference with specialized
+              training data built for the Ollama ecosystem.
             </p>
 
-            <div className="flex flex-wrap gap-md pt-md">
+            <div className="flex flex-wrap gap-4 pt-2">
               <Link
                 href="/datasets"
-                className="inline-flex items-center gap-sm rounded-xl bg-primary px-xl py-4 font-body text-body-lg font-bold text-on-primary transition-transform hover:-translate-y-0.5"
+                className="inline-flex items-center rounded bg-primary-container px-8 py-4 font-label text-[11px] font-bold uppercase tracking-[0.24em] text-on-primary-container transition-opacity hover:opacity-90"
               >
-                <span className="material-symbols-outlined">explore</span>
-                Browse datasets
+                Get started
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center rounded-xl border border-outline-variant px-xl py-4 font-body text-body-lg font-bold text-on-surface transition-colors hover:bg-surface-container"
+                className="inline-flex items-center rounded border border-white/20 px-8 py-4 font-label text-[11px] font-bold uppercase tracking-[0.24em] text-on-surface transition-colors hover:bg-white/5"
               >
-                Sign in to upload
+                View demo
               </Link>
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative rounded-xl border border-outline-variant/50 bg-surface-container-lowest p-md font-mono shadow-2xl">
-              <div className="flex items-center gap-xs border-b border-outline-variant/30 pb-sm">
-                <span className="h-3 w-3 rounded-full bg-error/70" />
-                <span className="h-3 w-3 rounded-full bg-tertiary/70" />
-                <span className="h-3 w-3 rounded-full bg-secondary/70" />
-                <span className="ml-auto font-label text-label uppercase tracking-widest text-on-surface-variant">
-                  ~/burstchester
-                </span>
-              </div>
-              <pre className="mt-sm overflow-x-auto whitespace-pre-wrap break-all font-mono text-code leading-relaxed text-on-surface">
-{`$ ollama run burstchester/legal-ko-qlora
-> 헌법 1조의 의미를 설명해줘
-대한민국은 민주공화국이며, 모든 권력은
-국민으로부터 나온다는 원칙입니다…`}
-              </pre>
+          <div className="relative lg:col-span-5">
+            <div className="overflow-hidden rounded-full border border-white/10 bg-surface-container-high shadow-2xl">
+              <img
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBb8DxiXrPEd_Ge8Wq7WuV7lcJ_rYcYG9Ymie-2NoQNhsNeWrotiMmsWBC4seuqiey9QXgurXMfHkbM6JtZwNNyBj91i3aejm1WfNGCYuk1sy-9HkM_fDiOh1eOkKbQq3RrO7w8-VPHgSrqQThdiy4VuyuJIe_iEmP2weNVRm9cQo1DlMVhE_-2BmXq2rhTPh7BZUeNqIXvlgNliVn5qbmcRyY7pCYjtoDZJB84Yrwu5x0HqZfnRVrPLkE_eKj_LMlvHZvk9hFyYgo"
+                alt="Abstract visualization of connected data nodes glowing over a dark background."
+                className="aspect-square w-full object-cover grayscale brightness-75 transition duration-1000 hover:grayscale-0"
+              />
+            </div>
+            <div className="absolute -bottom-8 left-0 max-w-[18rem] border-l-4 border-primary-container bg-surface-container px-5 py-4">
+              <p className="font-h3 text-h3 italic leading-tight text-on-surface">
+                &quot;The new standard for local inference precision.&quot;
+              </p>
             </div>
           </div>
         </div>

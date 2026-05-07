@@ -52,7 +52,7 @@ export interface PrepareDownloadDeps {
   getDataset: (datasetId: string) => Promise<DownloadableDataset | null>;
   downloadNormalizedJsonl: (dataset: DownloadableDataset) => Promise<string>;
   saveArchive: (path: string, bytes: Buffer) => Promise<void>;
-  getSignedUrl: (path: string) => Promise<string>;
+  getSignedUrl: (path: string, filename: string) => Promise<string>;
   setZipPath: (datasetId: string, zipPath: string) => Promise<void>;
   incrementDownloadStats: (dataset: DownloadableDataset, requesterUid?: string) => Promise<void>;
 }
@@ -83,9 +83,10 @@ export async function prepareDownloadCore(
   }
 
   const view = getDownloadView(dataset);
+  const filename = view.zipPath.split("/").at(-1) || `${dataset.id}.zip`;
 
   if (view.cached) {
-    const url = await deps.getSignedUrl(view.zipPath);
+    const url = await deps.getSignedUrl(view.zipPath, filename);
     await deps.incrementDownloadStats(dataset, input.requesterUid);
     return {
       cached: true,
@@ -104,7 +105,7 @@ export async function prepareDownloadCore(
   return {
     cached: false,
     zipPath: view.zipPath,
-    url: await deps.getSignedUrl(view.zipPath),
+    url: await deps.getSignedUrl(view.zipPath, filename),
   };
 }
 

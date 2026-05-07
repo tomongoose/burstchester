@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onSnapshot } from "firebase/firestore";
-import { getDb } from "@/lib/firebase";
-import { buildDatasetQuery, type SortOrder } from "./build-query";
-import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
+import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { SearchFilter } from "@/lib/domain/search-filter";
+import { fetchDatasetSummaries } from "./list-datasets";
+import type { SortOrder } from "./build-query";
 
 export interface UseDatasetSearchResult {
   readonly summaries: readonly DatasetSummary[];
@@ -16,21 +15,48 @@ export function useDatasetSearch(
   filter: SearchFilter,
   sort: SortOrder,
 ): UseDatasetSearchResult {
-  const [summaries, setSummaries] = useState<readonly DatasetSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const requestKey = [
+    sort,
+    filter.language ?? "",
+    filter.task ?? "",
+    filter.baseModel ?? "",
+    filter.size ?? "",
+    filter.tags.join(","),
+  ].join("|");
+  const [state, setState] = useState<{
+    readonly resolvedKey: string | null;
+    readonly summaries: readonly DatasetSummary[];
+  }>({
+    resolvedKey: null,
+    summaries: [],
+  });
 
   useEffect(() => {
-    const q = buildDatasetQuery(filter, { sort, db: getDb() });
-    const unsub = onSnapshot(q, (snapshot) => {
-      const next = snapshot.docs.map((doc) => {
-        const data = doc.data() as Parameters<typeof buildDatasetSummary>[0];
-        return buildDatasetSummary({ ...data, id: doc.id });
-      });
-      setSummaries(Object.freeze(next));
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [filter, sort]);
+    let cancelled = false;
 
-  return { summaries, loading };
+    void fetchDatasetSummaries({ filter, sort })
+      .then((next) => {
+        if (cancelled) return;
+        setState({
+          resolvedKey: requestKey,
+          summaries: next,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState({
+          resolvedKey: requestKey,
+          summaries: Object.freeze([]),
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filter, requestKey, sort]);
+
+  return {
+    summaries: state.summaries,
+    loading: state.resolvedKey !== requestKey,
+  };
 }

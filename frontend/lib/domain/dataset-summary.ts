@@ -4,6 +4,7 @@ const MAX_DESCRIPTION_LENGTH = 500;
 
 export interface DatasetRecordLike {
   readonly id: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
   readonly title: string;
   readonly description: string;
@@ -18,7 +19,9 @@ export interface DatasetSummary {
   readonly id: string;
   readonly title: string;
   readonly description: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
+  readonly ownerLabel: string;
   readonly tags: readonly string[];
   readonly likeCount: number;
   readonly downloadCount: number;
@@ -30,7 +33,9 @@ export function buildDatasetSummary(record: DatasetRecordLike): DatasetSummary {
     id: record.id,
     title: record.title,
     description: truncate(record.description, MAX_DESCRIPTION_LENGTH),
+    ownerUid: record.ownerUid,
     ownerName: record.ownerName,
+    ownerLabel: buildOwnerLabel(record.ownerUid, record.ownerName),
     tags: Object.freeze([...record.tags]),
     likeCount: Math.max(0, record.likeCount),
     downloadCount: Math.max(0, record.downloadCount),
@@ -41,4 +46,19 @@ export function buildDatasetSummary(record: DatasetRecordLike): DatasetSummary {
 function truncate(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength)}…`;
+}
+
+function buildOwnerLabel(ownerUid: string, ownerName: string): string {
+  const trimmedName = ownerName.trim();
+  if (!trimmedName) return "Anonymous";
+
+  if (trimmedName === ownerUid || looksLikeOpaqueUid(trimmedName)) {
+    return "Anonymous";
+  }
+
+  return trimmedName;
+}
+
+function looksLikeOpaqueUid(value: string): boolean {
+  return /^[A-Za-z0-9_-]{20,}$/.test(value);
 }

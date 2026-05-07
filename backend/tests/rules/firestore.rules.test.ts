@@ -2,7 +2,6 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
   assertFails,
-  assertSucceeds,
 } from "@firebase/rules-unit-testing";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { readFileSync } from "node:fs";
@@ -48,10 +47,10 @@ describe("firestore.rules — datasets collection", () => {
     );
   });
 
-  it("allows owner to create a well-formed dataset", async () => {
+  it("rejects owner creating a well-formed dataset", async () => {
     const ctx = testEnv.authenticatedContext("u1");
     const ref = doc(ctx.firestore(), "datasets/d1");
-    await assertSucceeds(
+    await assertFails(
       setDoc(ref, {
         ownerUid: "u1",
         title: "good",
@@ -80,7 +79,7 @@ describe("firestore.rules — datasets collection", () => {
     );
   });
 
-  it("anyone can read an active dataset", async () => {
+  it("rejects reading an active dataset from the client", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "datasets/d1"), {
         ownerUid: "u1",
@@ -94,6 +93,6 @@ describe("firestore.rules — datasets collection", () => {
     });
 
     const ctx = testEnv.unauthenticatedContext();
-    await assertSucceeds(getDoc(doc(ctx.firestore(), "datasets/d1")));
+    await assertFails(getDoc(doc(ctx.firestore(), "datasets/d1")));
   });
 });

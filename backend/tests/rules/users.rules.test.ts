@@ -2,7 +2,6 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
   assertFails,
-  assertSucceeds,
 } from "@firebase/rules-unit-testing";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { readFileSync } from "node:fs";
@@ -43,13 +42,13 @@ beforeEach(async () => {
 });
 
 describe("firestore.rules — users collection", () => {
-  it("allows anyone (unauthenticated) to read a user profile", async () => {
+  it("rejects client reads for a user profile", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "users/u-alice"), VALID_PROFILE);
     });
 
     const ctx = testEnv.unauthenticatedContext();
-    await assertSucceeds(getDoc(doc(ctx.firestore(), "users/u-alice")));
+    await assertFails(getDoc(doc(ctx.firestore(), "users/u-alice")));
   });
 
   it("rejects unauthenticated profile creation", async () => {
@@ -57,9 +56,9 @@ describe("firestore.rules — users collection", () => {
     await assertFails(setDoc(doc(ctx.firestore(), "users/u-alice"), VALID_PROFILE));
   });
 
-  it("allows authenticated owner to create own profile with valid shape", async () => {
+  it("rejects authenticated owner creating own profile with valid shape", async () => {
     const ctx = testEnv.authenticatedContext("u-alice");
-    await assertSucceeds(setDoc(doc(ctx.firestore(), "users/u-alice"), VALID_PROFILE));
+    await assertFails(setDoc(doc(ctx.firestore(), "users/u-alice"), VALID_PROFILE));
   });
 
   it("rejects creating profile when data.uid does not match path uid", async () => {

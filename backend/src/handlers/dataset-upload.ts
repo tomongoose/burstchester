@@ -1,6 +1,7 @@
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { processDatasetUpload } from "../core/datasets";
 import type { HandlerDeps } from "./deps";
+import { DEBUG_UPLOAD_STORAGE_PREFIX } from "./debug-upload-dataset";
 
 export function createOnDatasetUpload(
   deps: Pick<HandlerDeps, "db" | "storage" | "clock" | "fieldValue">,
@@ -9,7 +10,12 @@ export function createOnDatasetUpload(
     const data = event.data;
     const name = data.name ?? "";
 
-    if (!name || name.startsWith("normalized/") || name.startsWith("downloads/")) {
+    if (
+      !name
+      || name.startsWith("normalized/")
+      || name.startsWith("downloads/")
+      || name.startsWith(`${DEBUG_UPLOAD_STORAGE_PREFIX}/`)
+    ) {
       return;
     }
 

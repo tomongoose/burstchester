@@ -15,6 +15,8 @@ import {
   stripUndefinedDeep,
 } from "./_request-helpers";
 
+export const DEBUG_UPLOAD_STORAGE_PREFIX = "debug-uploads";
+
 export interface DebugUploadDatasetHandlerDeps {
   readonly verifyIdToken: HandlerDeps["auth"]["verifyIdToken"];
   readonly uploadDataset: (input: {
@@ -51,15 +53,10 @@ export function createDebugUploadDatasetHandler(
       const dataset = await deps.uploadDataset({
         ownerUid: decoded.uid,
         ownerName: decoded.name || decoded.email || decoded.uid,
-        filename: resolveDebugFilename(
-          readStringField(request.body, "filename"),
-          readStringField(request.body, "datasetId"),
-        ),
+        filename: resolveDebugFilename(readStringField(request.body, "filename")),
         content,
         metadata: {
           ...metadata,
-          datasetId:
-            readStringField(request.body, "datasetId") || metadata.datasetId,
           title: readStringField(request.body, "title") || metadata.title,
           description:
             readStringField(request.body, "description") || metadata.description,
@@ -115,13 +112,8 @@ export async function uploadDebugDatasetRecord(
   },
 ): Promise<Pick<DatasetRecord, "id" | "status" | "normalizedStoragePath">> {
   const bucket = deps.storage.bucket();
-  const datasetId = normalizeDebugDatasetId(
-    typeof input.metadata.datasetId === "string"
-      ? input.metadata.datasetId
-      : "",
-    input.filename,
-  );
-  const storagePath = `datasets/${input.ownerUid}/debug/${datasetId}.jsonl`;
+  const datasetId = randomUUID();
+  const storagePath = `${DEBUG_UPLOAD_STORAGE_PREFIX}/${input.ownerUid}/${datasetId}.jsonl`;
   const sourceModel =
     typeof input.metadata.sourceModel === "string" &&
     input.metadata.sourceModel.trim()
@@ -146,7 +138,7 @@ export async function uploadDebugDatasetRecord(
           typeof input.metadata.title === "string" &&
           input.metadata.title.trim()
             ? input.metadata.title.trim()
-            : datasetId,
+            : deriveDebugTitle(input.filename),
         description:
           typeof input.metadata.description === "string"
             ? input.metadata.description.trim()
@@ -210,20 +202,14 @@ export async function uploadDebugDatasetRecord(
   };
 }
 
-function resolveDebugFilename(filename: string, datasetId: string): string {
+function resolveDebugFilename(filename: string): string {
   const normalized = filename.trim();
   if (normalized) return normalized;
-  const fallbackId = datasetId.trim() || `debug-${randomUUID()}`;
-  return `${fallbackId}.jsonl`;
+  return `debug-${randomUUID()}.jsonl`;
 }
 
-function normalizeDebugDatasetId(
-  rawDatasetId: string,
-  filename: string,
-): string {
-  const normalized = rawDatasetId.trim();
-  if (normalized) return normalized;
-  const fileName = filename.split("/").at(-1) ?? `debug-${randomUUID()}.jsonl`;
+function deriveDebugTitle(filename: string): string {
+  const fileName = filename.split("/").at(-1) ?? "Debug Dataset";
   const stripped = fileName.replace(/\.jsonl$/i, "").trim();
-  return stripped || `debug-${randomUUID()}`;
+  return stripped || "Debug Dataset";
 }

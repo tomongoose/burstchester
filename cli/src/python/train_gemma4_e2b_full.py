@@ -15,7 +15,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config: dict[str, Any] = load_config(args.config)
-    config["modelRepo"] = "google/gemma-4-E2B"
+    config["modelRepo"] = str(config.get("modelRepo") or "google/gemma-4-E2B")
     config["trainingMethod"] = "full"
     train_from_config(config)
 

@@ -1,18 +1,53 @@
 "use client";
 
+import { Suspense, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { CategoryFilter } from "@/components/datasets/CategoryFilter";
+import { DatasetDetailPanel } from "@/components/datasets/DatasetDetailPanel";
 import { DatasetGrid } from "@/components/datasets/DatasetGrid";
+import { DatasetSelectionTray } from "@/components/datasets/DatasetSelectionTray";
 import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SearchFilter } from "@/lib/domain/search-filter";
 import { useDatasetSearch } from "@/lib/datasets/use-dataset-search";
 import type { SortOrder } from "@/lib/datasets/build-query";
+import { DATASET_DETAIL_ANCHOR } from "@/lib/datasets/routes";
 
 export default function DatasetsPage() {
+  return (
+    <Suspense fallback={<DatasetsPageFallback />}>
+      <DatasetsPageContent />
+    </Suspense>
+  );
+}
+
+function DatasetsPageContent() {
+  const searchParams = useSearchParams();
+  const selectedDatasetId = searchParams.get("dataset") ?? "";
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
   const [sort, setSort] = useState<SortOrder>("popular");
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState<readonly string[]>(
+    [],
+  );
   const { summaries, loading } = useDatasetSearch(filter, sort);
+  const detailRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedDatasetId) return;
+    detailRef.current?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
+  }, [selectedDatasetId]);
+
+  function handleToggleDatasetSelection(datasetId: string): void {
+    setSelectedDatasetIds((current) =>
+      current.includes(datasetId)
+        ? current.filter((value) => value !== datasetId)
+        : [...current, datasetId],
+    );
+  }
 
   return (
     <>
@@ -30,6 +65,16 @@ export default function DatasetsPage() {
             </div>
             <SortToggle sort={sort} onChange={setSort} />
           </div>
+        </div>
+
+        <div
+          id={DATASET_DETAIL_ANCHOR}
+          ref={detailRef}
+          className="mx-auto max-w-container-max px-gutter pb-lg"
+        >
+          {selectedDatasetId ? (
+            <DatasetDetailPanel datasetId={selectedDatasetId} />
+          ) : null}
         </div>
 
         <div className="mx-auto grid max-w-container-max gap-gutter px-gutter pb-xl lg:grid-cols-[260px_1fr]">
@@ -50,9 +95,50 @@ export default function DatasetsPage() {
                 ))}
               </ul>
             ) : (
-              <DatasetGrid summaries={summaries} />
+              <DatasetGrid
+                summaries={summaries}
+                selectedDatasetIds={selectedDatasetIds}
+                onToggleSelect={handleToggleDatasetSelection}
+              />
             )}
           </section>
+        </div>
+      </main>
+      <DatasetSelectionTray
+        selectedDatasetIds={selectedDatasetIds}
+        onRemoveDataset={(datasetId) =>
+          setSelectedDatasetIds((current) =>
+            current.filter((value) => value !== datasetId),
+          )
+        }
+      />
+      <SiteFooter />
+    </>
+  );
+}
+
+function DatasetsPageFallback() {
+  return (
+    <>
+      <SiteNav active="datasets" />
+      <main className="flex-1 pt-16">
+        <div className="mx-auto max-w-container-max px-gutter pt-xl pb-md">
+          <div className="h-12 w-56 animate-pulse rounded bg-surface-container-high" />
+          <div className="mt-3 h-4 w-80 animate-pulse rounded bg-surface-container" />
+        </div>
+        <div className="mx-auto grid max-w-container-max gap-gutter px-gutter pb-xl lg:grid-cols-[260px_1fr]">
+          <div className="h-64 animate-pulse border border-outline-variant/20 bg-surface-container-low" />
+          <div className="space-y-md">
+            <div className="h-4 w-48 animate-pulse rounded bg-surface-container" />
+            <ul className="grid list-none gap-gutter sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <li
+                  key={idx}
+                  className="h-56 animate-pulse border border-outline-variant/20 bg-surface-container-low"
+                />
+              ))}
+            </ul>
+          </div>
         </div>
       </main>
       <SiteFooter />

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Request, Response } from "express";
 
+vi.mock("firebase-admin/database", () => ({
+  getDatabase: () => ({ __brand: "database" }),
+}));
+
 vi.hoisted(() => {
   process.env.GCLOUD_PROJECT = "demo-burstchester";
   process.env.FIREBASE_CONFIG = JSON.stringify({
