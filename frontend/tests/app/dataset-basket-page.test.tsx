@@ -36,6 +36,7 @@ import { buildDatasetSummary } from "@/lib/domain/dataset-summary";
 
 const firstSummary = buildDatasetSummary({
   id: "dataset-1",
+  ownerUid: "uid-1",
   ownerName: "Alice",
   title: "Dataset One",
   description: "First dataset",
@@ -48,6 +49,7 @@ const firstSummary = buildDatasetSummary({
 
 const secondSummary = buildDatasetSummary({
   id: "dataset-2",
+  ownerUid: "uid-2",
   ownerName: "Bob",
   title: "Dataset Two",
   description: "Second dataset",
@@ -90,7 +92,7 @@ describe("Dataset basket page flow", () => {
 
     expect(screen.getByText("2 selected")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /copy list/i }));
+    await user.click(screen.getByRole("button", { name: /copy dataset ids/i }));
 
     expect(writeTextMock).toHaveBeenCalledWith(
       "dataset-1\ndataset-2\n",

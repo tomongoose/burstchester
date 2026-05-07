@@ -365,7 +365,6 @@ async function handleUploadTestDataset(flags) {
     filename,
     content,
     metadata: {
-      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
       tags: typeof flags.tags === "string" ? flags.tags : undefined,
@@ -457,7 +456,6 @@ async function handleUploadProxyLog(flags) {
     filename,
     content,
     metadata: {
-      datasetId: typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : undefined,
       language: typeof flags.language === "string" ? flags.language : undefined,
       license: typeof flags.license === "string" ? flags.license : undefined,
       outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
@@ -657,8 +655,8 @@ function printUsage() {
       "  download-model --url <hf-url> [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
-      "  upload-test-dataset --file <path> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
-      "  upload-proxy-log --file <path> --source-model <model> [--dataset-id <id>] [--title <title>] [--upload-url <url>]",
+      "  upload-test-dataset --file <path> [--title <title>] [--upload-url <url>]",
+      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--upload-url <url>]",
       "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
       "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
       "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",

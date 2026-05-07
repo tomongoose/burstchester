@@ -24,20 +24,6 @@ export function DatasetCard({
         <span className="absolute bottom-2 left-md font-label text-label uppercase tracking-[0.22em] text-on-surface-variant">
           {summary.size.category}
         </span>
-        <button
-          type="button"
-          aria-pressed={selected}
-          aria-label={`${selected ? "Remove" : "Add"} ${summary.title}`}
-          onClick={() => onToggleSelect(summary.id)}
-          className={[
-            "absolute right-3 top-3 inline-flex items-center rounded-full border px-3 py-1 font-label text-[10px] uppercase tracking-[0.2em]",
-            selected
-              ? "border-primary bg-primary text-on-primary"
-              : "border-white/20 bg-black/20 text-on-surface",
-          ].join(" ")}
-        >
-          {selected ? "Selected" : "Add"}
-        </button>
       </div>
       <Link
         href={buildDatasetDetailHref(summary.id)}
@@ -47,6 +33,24 @@ export function DatasetCard({
           <h4 className="font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
             {summary.title}
           </h4>
+          <button
+            type="button"
+            aria-pressed={selected}
+            aria-label={`${selected ? "Remove" : "Add"} ${summary.title}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleSelect(summary.id);
+            }}
+            className={[
+              "inline-flex shrink-0 items-center rounded-full border px-3 py-1 font-label text-[10px] uppercase tracking-[0.2em]",
+              selected
+                ? "border-primary bg-primary text-on-primary"
+                : "border-white/20 bg-surface-container-high text-on-surface hover:border-primary/40 hover:text-primary",
+            ].join(" ")}
+          >
+            {selected ? "Selected" : "Add"}
+          </button>
         </div>
         <p className="line-clamp-2 font-body text-body-md text-on-surface-variant">
           {summary.description || "No description provided."}
@@ -64,7 +68,7 @@ export function DatasetCard({
         </ul>
         <div className="mt-auto flex items-center justify-between border-t border-outline-variant/20 pt-md">
           <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
-            by {summary.ownerName}
+            by {summary.ownerLabel}
           </span>
           <div className="flex items-center gap-md text-on-surface-variant">
             <span className="inline-flex items-center gap-xs font-label text-label">

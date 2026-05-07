@@ -4,7 +4,7 @@ export interface DatasetSeoInput {
   readonly id: string;
   readonly title: string;
   readonly description: string;
-  readonly ownerName: string;
+  readonly ownerLabel: string;
   readonly tags: readonly string[];
   readonly likeCount: number;
   readonly downloadCount: number;
@@ -66,7 +66,7 @@ export function buildDatasetJsonLd(summary: DatasetSeoInput): DatasetJsonLd {
     name: summary.title,
     description: summary.description,
     keywords: Object.freeze([...summary.tags]),
-    creator: Object.freeze({ "@type": "Person", name: summary.ownerName }),
+    creator: Object.freeze({ "@type": "Person", name: summary.ownerLabel }),
     url: `https://burstchester.app/datasets/${summary.id}`,
   });
 }

@@ -110,4 +110,50 @@ describe("debugUploadDatasetHandler", () => {
       },
     });
   });
+
+  it("passes the provided title separately from the generated dataset id", async () => {
+    const response = createResponse();
+    const captured: Array<Record<string, unknown>> = [];
+
+    const handler = createDebugUploadDatasetHandler({
+      verifyIdToken: async () => ({
+        uid: "u-debugger",
+        email: "debugger@example.com",
+        name: "Debugger",
+      }),
+      uploadDataset: async (input) => {
+        captured.push(input.metadata);
+        return {
+          id: "generated-random-id",
+          status: "active",
+          normalizedStoragePath: "normalized/generated-random-id/dataset.jsonl",
+        };
+      },
+    });
+
+    await handler(
+      {
+        headers: { authorization: "Bearer firebase-id-token" },
+        body: {
+          filename: "legal-ko.jsonl",
+          content:
+            '{"messages":[{"role":"user","content":"질문"},{"role":"assistant","content":"답변"}]}\n',
+          datasetId: "user-provided-id",
+          title: "Legal Debug Dataset",
+        },
+      },
+      response as never,
+    );
+
+    expect(captured[0].datasetId).toBeUndefined();
+    expect(captured[0].title).toBe("Legal Debug Dataset");
+    expect(response.body).toEqual({
+      ok: true,
+      dataset: {
+        id: "generated-random-id",
+        status: "active",
+        normalizedStoragePath: "normalized/generated-random-id/dataset.jsonl",
+      },
+    });
+  });
 });

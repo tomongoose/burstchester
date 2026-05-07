@@ -8,6 +8,7 @@ import { readDatasetId } from "./_request-helpers";
 
 interface DatasetSummaryRecord {
   readonly id: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
   readonly title: string;
   readonly description: string;
@@ -95,6 +96,7 @@ export async function executeGetDataset(
 function toDatasetSummaryRecord(dataset: DatasetRecord): DatasetSummaryRecord {
   return {
     id: dataset.id,
+    ownerUid: dataset.ownerUid,
     ownerName: dataset.ownerName,
     title: dataset.title,
     description: dataset.description,

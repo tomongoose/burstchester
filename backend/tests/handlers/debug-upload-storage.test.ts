@@ -43,13 +43,13 @@ describe("uploadDebugDatasetRecord", () => {
       content:
         '{"messages":[{"role":"user","content":"Q"},{"role":"assistant","content":"A"}]}\n',
       metadata: {
-        datasetId: "debug-dataset",
+        title: "Debug Dataset",
         sourceModel: "human",
       },
     });
 
-    expect(savedPaths[0]).toBe(
-      `${DEBUG_UPLOAD_STORAGE_PREFIX}/u-debugger/debug-dataset.jsonl`,
+    expect(savedPaths[0]).toMatch(
+      new RegExp(`^${DEBUG_UPLOAD_STORAGE_PREFIX}/u-debugger/[0-9a-f-]+\\.jsonl$`),
     );
   });
 });

@@ -3,6 +3,7 @@ import { resolveDatasetBackendBaseUrl } from "./list-datasets";
 
 interface TrendingDatasetRecord {
   readonly id: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
   readonly title: string;
   readonly description: string;

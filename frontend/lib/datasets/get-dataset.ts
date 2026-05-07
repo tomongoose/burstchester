@@ -4,6 +4,7 @@ import { getDatasetApiAuthToken } from "./auth-token";
 
 interface DatasetRecordLike {
   readonly id: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
   readonly title: string;
   readonly description: string;

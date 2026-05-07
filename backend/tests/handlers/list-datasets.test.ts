@@ -87,6 +87,7 @@ describe("listDatasetsHandler", () => {
         return [
           {
             id: "dataset-1",
+            ownerUid: "uid-alice",
             ownerName: "Alice",
             title: "Legal Ko",
             description: "Korean legal dataset",
@@ -136,6 +137,7 @@ describe("listDatasetsHandler", () => {
       datasets: [
         {
           id: "dataset-1",
+          ownerUid: "uid-alice",
           ownerName: "Alice",
           title: "Legal Ko",
           description: "Korean legal dataset",
@@ -267,6 +269,7 @@ describe("listDatasetsHandler", () => {
       [
         {
           id: "dataset-1",
+          ownerUid: "uid-alice",
           ownerName: "Alice",
           title: "Legal Korean Set",
           description: "Korean legal dataset",
@@ -282,6 +285,7 @@ describe("listDatasetsHandler", () => {
         },
         {
           id: "dataset-2",
+          ownerUid: "uid-bob",
           ownerName: "Bob",
           title: "Medical English Set",
           description: "Medical dataset",
@@ -297,6 +301,7 @@ describe("listDatasetsHandler", () => {
         },
         {
           id: "dataset-3",
+          ownerUid: "uid-cara",
           ownerName: "Cara",
           title: "Rejected Set",
           description: "Should not show",

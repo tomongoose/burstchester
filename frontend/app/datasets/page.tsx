@@ -104,7 +104,14 @@ function DatasetsPageContent() {
           </section>
         </div>
       </main>
-      <DatasetSelectionTray selectedDatasetIds={selectedDatasetIds} />
+      <DatasetSelectionTray
+        selectedDatasetIds={selectedDatasetIds}
+        onRemoveDataset={(datasetId) =>
+          setSelectedDatasetIds((current) =>
+            current.filter((value) => value !== datasetId),
+          )
+        }
+      />
       <SiteFooter />
     </>
   );

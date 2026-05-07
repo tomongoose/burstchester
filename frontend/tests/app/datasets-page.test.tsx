@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 const useSearchParamsMock = vi.fn();
 const useDatasetSearchMock = vi.fn();
@@ -25,7 +26,15 @@ vi.mock("@/components/datasets/CategoryFilter", () => ({
 }));
 
 vi.mock("@/components/datasets/DatasetGrid", () => ({
-  DatasetGrid: () => <div>grid</div>,
+  DatasetGrid: ({
+    onToggleSelect,
+  }: {
+    onToggleSelect: (datasetId: string) => void;
+  }) => (
+    <button type="button" onClick={() => onToggleSelect("ds-1")}>
+      select dataset
+    </button>
+  ),
 }));
 
 vi.mock("@/components/datasets/DatasetDetailPanel", () => ({
@@ -64,5 +73,35 @@ describe("DatasetsPage", () => {
     render(<DatasetsPage />);
 
     expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("shows the selection tray after a dataset is added", async () => {
+    useSearchParamsMock.mockReturnValue({
+      get: () => null,
+    });
+    const user = userEvent.setup();
+
+    render(<DatasetsPage />);
+    await user.click(screen.getByRole("button", { name: /select dataset/i }));
+
+    expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
+    expect(screen.getByText("ds-1")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /copy dataset ids/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("removes a dataset from the tray when delete is clicked", async () => {
+    useSearchParamsMock.mockReturnValue({
+      get: () => null,
+    });
+    const user = userEvent.setup();
+
+    render(<DatasetsPage />);
+    await user.click(screen.getByRole("button", { name: /select dataset/i }));
+    await user.click(screen.getByRole("button", { name: /remove ds-1/i }));
+
+    expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("ds-1")).not.toBeInTheDocument();
   });
 });

@@ -54,6 +54,7 @@ describe("trending dataset handlers", () => {
         datasets: [
           {
             id: "dataset-1",
+            ownerUid: "uid-alice",
             ownerName: "Alice",
             title: "Trending Set",
             description: "Popular dataset",
@@ -75,6 +76,7 @@ describe("trending dataset handlers", () => {
       datasets: [
         {
           id: "dataset-1",
+          ownerUid: "uid-alice",
           ownerName: "Alice",
           title: "Trending Set",
           description: "Popular dataset",
@@ -103,6 +105,7 @@ describe("trending dataset handlers", () => {
                       {
                         id: "dataset-1",
                         data: () => ({
+                          ownerUid: "uid-alice",
                           ownerName: "Alice",
                           title: "Trending Set",
                           description: "Popular dataset",
@@ -137,6 +140,7 @@ describe("trending dataset handlers", () => {
         datasets: [
           {
             id: "dataset-1",
+            ownerUid: "uid-alice",
             ownerName: "Alice",
             title: "Trending Set",
             description: "Popular dataset",

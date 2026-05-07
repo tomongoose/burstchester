@@ -115,7 +115,7 @@ export function DatasetDetailPanel({
               {summary.title}
             </h2>
             <p className="mt-3 font-body text-body-md text-on-surface-variant">
-              by <span className="text-on-surface">{summary.ownerName}</span>
+              by <span className="text-on-surface">{summary.ownerLabel}</span>
             </p>
           </div>
 

@@ -11,6 +11,7 @@ const TRENDING_DATASETS_PATH = "public/trendingDatasets";
 
 interface DatasetSummaryRecord {
   readonly id: string;
+  readonly ownerUid: string;
   readonly ownerName: string;
   readonly title: string;
   readonly description: string;
@@ -121,6 +122,7 @@ async function readTrendingDatasetsCache(
 function toDatasetSummaryRecord(dataset: DatasetRecord): DatasetSummaryRecord {
   return {
     id: dataset.id,
+    ownerUid: dataset.ownerUid,
     ownerName: dataset.ownerName,
     title: dataset.title,
     description: dataset.description,

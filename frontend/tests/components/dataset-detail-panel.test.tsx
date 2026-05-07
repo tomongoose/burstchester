@@ -4,7 +4,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 vi.mock("@/lib/datasets/get-dataset", () => ({
   fetchDatasetSummaryById: vi.fn(async () => ({
     id: "gemma4-full-debug-3",
+    ownerUid: "uid-1",
     ownerName: "Alice",
+    ownerLabel: "Alice",
     title: "Gemma4 Full Debug Dataset 3",
     description: "Debug dataset",
     tags: ["debug", "test"],

@@ -13,6 +13,7 @@ import { buildDatasetSummary } from "@/lib/domain/dataset-summary";
 
 const summary = buildDatasetSummary({
   id: "dataset-1",
+  ownerUid: "uid-1",
   ownerName: "Alice",
   title: "Fallback Dataset",
   description: "Shown when seed-tagged datasets are unavailable.",

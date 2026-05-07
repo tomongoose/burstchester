@@ -5,6 +5,7 @@ import { buildDatasetSummary } from "@/lib/domain/dataset-summary";
 
 const baseRecord = {
   id: "ds-1",
+  ownerUid: "uid-1",
   ownerName: "Alice",
   title: "Korean Legal Q&A",
   description: "한국 법률 데이터셋",
@@ -88,5 +89,20 @@ describe("DatasetCard", () => {
     expect(
       screen.getByRole("button", { name: /add korean legal q&a/i }),
     ).toBeInTheDocument();
+  });
+
+  it("shows Selected label when the dataset is already in the basket", () => {
+    const summary = buildDatasetSummary(baseRecord);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected
+        onToggleSelect={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /remove korean legal q&a/i }),
+    ).toHaveTextContent("Selected");
   });
 });

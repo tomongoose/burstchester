@@ -21,6 +21,7 @@ describe("fetchDatasetSummaryById", () => {
         ok: true,
         dataset: {
           id: "dataset-1",
+          ownerUid: "uid-1",
           ownerName: "Alice",
           title: "Legal Korean Set",
           description: "Dataset",
@@ -61,6 +62,7 @@ describe("fetchDatasetSummaryById", () => {
           ok: true,
           dataset: {
             id: "dataset-1",
+            ownerUid: "uid-1",
             ownerName: "Alice",
             title: "Legal Korean Set",
             description: "Dataset",

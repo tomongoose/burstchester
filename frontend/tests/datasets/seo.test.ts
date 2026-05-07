@@ -12,7 +12,7 @@ const summary = {
   id: "ds-1",
   title: "Korean Legal Q&A",
   description: "한국 법률 데이터셋",
-  ownerName: "Alice",
+  ownerLabel: "Alice",
   tags: ["legal", "korean"],
   likeCount: 12,
   downloadCount: 47,

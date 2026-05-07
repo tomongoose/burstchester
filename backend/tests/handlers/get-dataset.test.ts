@@ -84,6 +84,7 @@ describe("getDatasetHandler", () => {
       async () =>
         ({
           id: "dataset-1",
+          ownerUid: "uid-alice",
           ownerName: "Alice",
           title: "Legal Korean Set",
           description: "Korean legal dataset",
@@ -99,9 +100,10 @@ describe("getDatasetHandler", () => {
     expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
     expect(response.body).toEqual({
       ok: true,
-      dataset: {
-        id: "dataset-1",
-        ownerName: "Alice",
+        dataset: {
+          id: "dataset-1",
+          ownerUid: "uid-alice",
+          ownerName: "Alice",
         title: "Legal Korean Set",
         description: "Korean legal dataset",
         tags: ["domain/legal", "quality:seed"],
