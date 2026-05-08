@@ -7,16 +7,20 @@ export async function verifyBearerAuth(
   bearerToken: string,
 ): Promise<DecodedIdToken> {
   if (bearerToken.startsWith("bst_")) {
-    const decoded = await verifyUserAccessToken(bearerToken, async (tokenId) => {
-      const snapshot = await deps.db.doc(`accessTokens/${tokenId}`).get();
+    const decoded = await verifyUserAccessToken(bearerToken, async (uid, tokenId) => {
+      const snapshot = await deps.db
+        .doc(`users/${uid}/accessTokens/${tokenId}`)
+        .get();
       return snapshot.exists ? (snapshot.data() as UserAccessTokenRecord) : null;
     });
-    await deps.db.doc(`accessTokens/${decoded.tokenId}`).set(
-      {
-        lastUsedAt: deps.fieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+    await deps.db
+      .doc(`users/${decoded.uid}/accessTokens/${decoded.tokenId}`)
+      .set(
+        {
+          lastUsedAt: deps.fieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
     return { uid: decoded.uid };
   }
 

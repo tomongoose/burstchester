@@ -20,7 +20,7 @@ describe("user access tokens", () => {
       TEST_NOW,
     );
 
-    expect(result.token).toBe("bst_token-id_secret-value");
+    expect(result.token).toBe("bst_dXNlci0x_token-id_secret-value");
     expect(result.record.id).toBe("token-id");
     expect(result.record.ownerUid).toBe("user-1");
     expect(result.record.label).toBe("Colab");
@@ -41,5 +41,20 @@ describe("user access tokens", () => {
     );
 
     expect(decoded.uid).toBe("user-1");
+    expect(decoded.tokenId).toBe("token-id");
+  });
+
+  it("rejects tokens whose encoded user does not own the record", async () => {
+    const issued = buildUserAccessToken(
+      { uid: "user-1", label: "" },
+      () => "token-id",
+      () => "secret-value",
+      TEST_NOW,
+    );
+
+    await expect(verifyUserAccessToken(
+      issued.token,
+      async () => ({ ...issued.record, ownerUid: "user-2" }),
+    )).rejects.toThrow("Invalid access token.");
   });
 });

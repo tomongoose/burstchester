@@ -19,9 +19,15 @@ export function createIssueAccessTokenHandler(
   deps: IssueAccessTokenHandlerDeps,
 ) {
   return async function handleIssueAccessToken(
-    request: Pick<Request, "headers" | "body">,
+    request: Pick<Request, "method" | "headers" | "body">,
     response: Response,
   ): Promise<void> {
+    applyCors(response);
+    if (request.method === "OPTIONS") {
+      response.status(204).send();
+      return;
+    }
+
     const bearerToken = readBearerToken(request);
     if (!bearerToken) {
       response.status(401).json({ ok: false, error: "Missing bearer token." });
@@ -48,6 +54,12 @@ export function createIssueAccessTokenHandler(
   };
 }
 
+function applyCors(response: Pick<Response, "setHeader">): void {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 export function createIssueAccessToken(
   deps: Pick<HandlerDeps, "auth" | "clock" | "db" | "generateId">,
 ) {
@@ -60,7 +72,9 @@ export function createIssueAccessToken(
         () => randomBytes(32).toString("base64url"),
         deps.clock.now(),
       );
-      await deps.db.doc(`accessTokens/${issued.record.id}`).set(issued.record);
+      await deps.db
+        .doc(`users/${issued.record.ownerUid}/accessTokens/${issued.record.id}`)
+        .set(issued.record);
       return {
         token: issued.token,
         tokenId: issued.record.id,

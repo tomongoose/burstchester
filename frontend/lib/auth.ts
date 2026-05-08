@@ -1,38 +1,27 @@
 import {
+  getRedirectResult,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type Auth,
   type User as FirebaseUser,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  type DocumentReference,
-  type DocumentSnapshot,
-  type Firestore,
-} from "firebase/firestore";
-import { getDb, getFirebaseAuth } from "@/lib/firebase";
-import { buildInitialProfileDoc, type AuthUser } from "@/lib/users/seed";
+import { getFirebaseAuth } from "@/lib/firebase";
+import { resolveDatasetBackendBaseUrl } from "@/lib/datasets/list-datasets";
 
 export interface AuthServiceDeps {
   readonly auth: Auth;
-  readonly db: Firestore;
   readonly clock: () => Date;
-  readonly signInWithPopup: (
+  readonly signInWithRedirect: (
     auth: Auth,
     provider: GoogleAuthProvider,
-  ) => Promise<{ user: FirebaseUser }>;
+  ) => Promise<void>;
+  readonly getRedirectResult: (
+    auth: Auth,
+  ) => Promise<{ user: FirebaseUser } | null>;
   readonly firebaseSignOut: (auth: Auth) => Promise<void>;
-  readonly getDoc: (ref: DocumentReference) => Promise<DocumentSnapshot>;
-  readonly setDoc: (ref: DocumentReference, data: unknown) => Promise<void>;
-  readonly doc: (
-    db: Firestore,
-    collection: string,
-    id: string,
-  ) => DocumentReference;
   readonly createGoogleProvider: () => GoogleAuthProvider;
+  readonly upsertProfile: (user: FirebaseUser) => Promise<void>;
 }
 
 export class AuthService {
@@ -40,8 +29,14 @@ export class AuthService {
 
   async signInWithGoogle(): Promise<void> {
     const provider = this.deps.createGoogleProvider();
-    const result = await this.deps.signInWithPopup(this.deps.auth, provider);
+    await this.deps.signInWithRedirect(this.deps.auth, provider);
+  }
+
+  async handleGoogleRedirectResult(): Promise<boolean> {
+    const result = await this.deps.getRedirectResult(this.deps.auth);
+    if (!result?.user) return false;
     await this.ensureUserProfile(result.user);
+    return true;
   }
 
   async signOut(): Promise<void> {
@@ -52,32 +47,19 @@ export class AuthService {
     if (!user.uid) {
       throw new Error("ensureUserProfile requires a user with a uid");
     }
-    const ref = this.deps.doc(this.deps.db, "users", user.uid);
-    const existing = await this.deps.getDoc(ref);
-    if (existing.exists()) return;
-
-    const authUser: AuthUser = {
-      uid: user.uid,
-      displayName: user.displayName ?? "",
-      email: user.email ?? "",
-      photoURL: user.photoURL,
-    };
-    const seed = buildInitialProfileDoc(authUser, this.deps.clock());
-    await this.deps.setDoc(ref, seed);
+    await this.deps.upsertProfile(user);
   }
 }
 
 export function buildDefaultAuthService(): AuthService {
   return new AuthService({
     auth: getFirebaseAuth(),
-    db: getDb(),
     clock: () => new Date(),
-    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     firebaseSignOut,
-    getDoc,
-    setDoc,
-    doc,
     createGoogleProvider: () => new GoogleAuthProvider(),
+    upsertProfile: upsertProfileThroughBackend,
   });
 }
 
@@ -87,3 +69,23 @@ export function getDefaultAuthService(): AuthService {
   return cachedDefault;
 }
 
+export async function upsertProfileThroughBackend(user: FirebaseUser): Promise<void> {
+  const idToken = await user.getIdToken();
+  const response = await fetch(`${resolveDatasetBackendBaseUrl()}/upsertCliProfile`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      displayName: user.displayName || "Anonymous",
+      photoURL: user.photoURL || "",
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || `Profile upsert failed with status ${response.status}.`);
+  }
+}

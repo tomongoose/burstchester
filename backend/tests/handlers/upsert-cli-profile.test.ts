@@ -5,14 +5,18 @@ import { createUpsertCliProfileHandler } from "@/handlers/upsert-cli-profile";
 interface ResponseStub {
   statusCode: number;
   body: unknown;
+  headers: Record<string, string>;
   status(code: number): ResponseStub;
   json(payload: unknown): ResponseStub;
+  send(payload?: unknown): ResponseStub;
+  setHeader(name: string, value: string): void;
 }
 
 function createResponse(): ResponseStub {
   return {
     statusCode: 200,
     body: undefined,
+    headers: {},
     status(code) {
       this.statusCode = code;
       return this;
@@ -21,10 +25,39 @@ function createResponse(): ResponseStub {
       this.body = payload;
       return this;
     },
+    send(payload) {
+      this.body = payload;
+      return this;
+    },
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
   };
 }
 
 describe("upsertCliProfileHandler", () => {
+  it("answers browser preflight requests", async () => {
+    const response = createResponse();
+
+    const handler = createUpsertCliProfileHandler({
+      verifyIdToken: async () => {
+        throw new Error("should not be called");
+      },
+      upsertProfile: async () => {
+        throw new Error("should not be called");
+      },
+    });
+
+    await handler(
+      { method: "OPTIONS", headers: {}, body: {} },
+      response as never,
+    );
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
+    expect(response.headers["Access-Control-Allow-Headers"]).toContain("Authorization");
+  });
+
   it("rejects requests without bearer token", async () => {
     const response = createResponse();
 
@@ -38,7 +71,7 @@ describe("upsertCliProfileHandler", () => {
     });
 
     await handler(
-      { headers: {}, body: { displayName: "Alice" } },
+      { method: "POST", headers: {}, body: { displayName: "Alice" } },
       response as never,
     );
 
@@ -72,6 +105,7 @@ describe("upsertCliProfileHandler", () => {
     await handler(
       {
         headers: { authorization: "Bearer firebase-id-token" },
+        method: "POST",
         body: {
           displayName: "Alice",
           photoURL: "https://example.com/p.png",

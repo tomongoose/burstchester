@@ -1,5 +1,6 @@
 import type { JSX } from "react";
 import Link from "next/link";
+import { AuthNavAction } from "./AuthNavAction";
 
 interface SiteNavProps {
   readonly active?: "datasets" | "profile" | "tokens" | null;
@@ -50,12 +51,7 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
           </div>
         </div>
         <div className="flex items-center gap-sm">
-          <Link
-            href="/login"
-            className="inline-flex items-center rounded-md bg-primary-container px-4 py-2 font-label text-[11px] uppercase tracking-[0.22em] text-on-primary-container transition-opacity hover:opacity-85"
-          >
-            Sign in
-          </Link>
+          <AuthNavAction />
         </div>
       </div>
     </nav>

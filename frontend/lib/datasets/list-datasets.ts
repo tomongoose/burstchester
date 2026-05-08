@@ -1,5 +1,6 @@
 import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { SearchFilter } from "@/lib/domain/search-filter";
+import { resolveFirebaseWebConfig } from "@/lib/firebase";
 import type { SortOrder } from "./build-query";
 import { getDatasetApiAuthToken } from "./auth-token";
 
@@ -161,10 +162,11 @@ function resolveFirebaseProjectId(): string {
   if (explicit) return explicit;
 
   if (typeof window !== "undefined") {
-    return inferFirebaseProjectIdFromHostname(window.location.hostname);
+    const inferred = inferFirebaseProjectIdFromHostname(window.location.hostname);
+    if (inferred) return inferred;
   }
 
-  return "";
+  return resolveFirebaseWebConfig().projectId;
 }
 
 export function inferFirebaseProjectIdFromHostname(hostname: string): string {

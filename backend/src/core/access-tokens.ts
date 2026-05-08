@@ -31,7 +31,7 @@ export function buildUserAccessToken(
   }
 
   return Object.freeze({
-    token: `${TOKEN_PREFIX}_${id}_${secret}`,
+    token: `${TOKEN_PREFIX}_${encodeTokenPart(input.uid)}_${id}_${secret}`,
     record: Object.freeze({
       id,
       ownerUid: input.uid,
@@ -45,11 +45,15 @@ export function buildUserAccessToken(
 
 export async function verifyUserAccessToken(
   token: string,
-  getRecord: (tokenId: string) => Promise<UserAccessTokenRecord | null>,
+  getRecord: (uid: string, tokenId: string) => Promise<UserAccessTokenRecord | null>,
 ): Promise<{ uid: string; tokenId: string }> {
   const parsed = parseUserAccessToken(token);
-  const record = await getRecord(parsed.id);
+  const record = await getRecord(parsed.uid, parsed.id);
   if (!record || record.revokedAt) {
+    throw new Error("Invalid access token.");
+  }
+
+  if (record.ownerUid !== parsed.uid || record.id !== parsed.id) {
     throw new Error("Invalid access token.");
   }
 
@@ -60,17 +64,29 @@ export async function verifyUserAccessToken(
   return Object.freeze({ uid: record.ownerUid, tokenId: record.id });
 }
 
-export function parseUserAccessToken(token: string): { id: string; secret: string } {
-  const [prefix, id, ...secretParts] = token.split("_");
+export function parseUserAccessToken(token: string): { uid: string; id: string; secret: string } {
+  const [prefix, encodedUid, id, ...secretParts] = token.split("_");
   const secret = secretParts.join("_");
-  if (prefix !== TOKEN_PREFIX || !id || !secret) {
+  if (prefix !== TOKEN_PREFIX || !encodedUid || !id || !secret) {
     throw new Error("Invalid access token.");
   }
-  return { id, secret };
+  return { uid: decodeTokenPart(encodedUid), id, secret };
 }
 
 function hashTokenSecret(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");
+}
+
+function encodeTokenPart(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function decodeTokenPart(value: string): string {
+  const decoded = Buffer.from(value, "base64url").toString("utf8");
+  if (!decoded) {
+    throw new Error("Invalid access token.");
+  }
+  return decoded;
 }
 
 function secureEqual(left: string, right: string): boolean {

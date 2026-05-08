@@ -5,14 +5,18 @@ import { createIssueAccessTokenHandler } from "@/handlers/issue-access-token";
 interface ResponseStub {
   statusCode: number;
   body: unknown;
+  headers: Record<string, string>;
   status(code: number): ResponseStub;
   json(payload: unknown): ResponseStub;
+  send(payload?: unknown): ResponseStub;
+  setHeader(name: string, value: string): void;
 }
 
 function createResponse(): ResponseStub {
   return {
     statusCode: 200,
     body: undefined,
+    headers: {},
     status(code) {
       this.statusCode = code;
       return this;
@@ -21,10 +25,38 @@ function createResponse(): ResponseStub {
       this.body = payload;
       return this;
     },
+    send(payload) {
+      this.body = payload;
+      return this;
+    },
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
   };
 }
 
 describe("issueAccessTokenHandler", () => {
+  it("answers browser preflight requests", async () => {
+    const response = createResponse();
+    const handler = createIssueAccessTokenHandler({
+      verifyIdToken: async () => {
+        throw new Error("should not verify");
+      },
+      issueAccessToken: async () => {
+        throw new Error("should not issue");
+      },
+    });
+
+    await handler(
+      { method: "OPTIONS", headers: {}, body: {} },
+      response as never,
+    );
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
+    expect(response.headers["Access-Control-Allow-Headers"]).toContain("Authorization");
+  });
+
   it("requires a Firebase bearer token", async () => {
     const response = createResponse();
     const handler = createIssueAccessTokenHandler({
@@ -36,7 +68,7 @@ describe("issueAccessTokenHandler", () => {
       },
     });
 
-    await handler({ headers: {}, body: {} }, response as never);
+    await handler({ method: "POST", headers: {}, body: {} }, response as never);
 
     expect(response.statusCode).toBe(401);
     expect(response.body).toEqual({ ok: false, error: "Missing bearer token." });
@@ -59,6 +91,7 @@ describe("issueAccessTokenHandler", () => {
     await handler(
       {
         headers: { authorization: "Bearer firebase-id-token" },
+        method: "POST",
         body: { label: "Colab" },
       },
       response as never,

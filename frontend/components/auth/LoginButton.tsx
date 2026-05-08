@@ -12,7 +12,9 @@ export function LoginButton({
 }: LoginButtonProps = {}): JSX.Element {
   const handleClick = () => {
     const service = authService ?? getDefaultAuthService();
-    void service.signInWithGoogle();
+    void service.signInWithGoogle().catch((error) => {
+      console.error("Google sign-in failed", error);
+    });
   };
 
   return (

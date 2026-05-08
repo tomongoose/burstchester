@@ -190,4 +190,21 @@ describe("resolveDatasetBackendBaseUrl", () => {
       delete process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     }
   });
+
+  it("falls back to the bundled Firebase project id on localhost", () => {
+    const originalProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    delete process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { hostname: "localhost" },
+    });
+
+    expect(resolveDatasetBackendBaseUrl()).toBe(
+      "https://us-central1-bustchester-e08c3.cloudfunctions.net",
+    );
+
+    if (originalProjectId) {
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = originalProjectId;
+    }
+  });
 });

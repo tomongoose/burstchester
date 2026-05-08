@@ -31,9 +31,15 @@ export function createUpsertCliProfileHandler(
   deps: UpsertCliProfileHandlerDeps,
 ) {
   return async function handleUpsertCliProfile(
-    request: Pick<Request, "headers" | "body">,
+    request: Pick<Request, "method" | "headers" | "body">,
     response: Response,
   ): Promise<void> {
+    applyCors(response);
+    if (request.method === "OPTIONS") {
+      response.status(204).send();
+      return;
+    }
+
     const bearerToken = readBearerToken(request);
     if (!bearerToken) {
       response.status(401).json({ ok: false, error: "Missing bearer token." });
@@ -68,6 +74,12 @@ export function createUpsertCliProfileHandler(
       });
     }
   };
+}
+
+function applyCors(response: Pick<Response, "setHeader">): void {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
 export function createUpsertCliProfile(
