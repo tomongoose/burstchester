@@ -54,4 +54,22 @@ describe("fetchModelSummaries", () => {
       },
     );
   });
+
+  it("can request models scoped to a profile owner", async () => {
+    const fetchImpl = vi.fn(async () => new Response(
+      JSON.stringify({ ok: true, models: [] }),
+      { status: 200 },
+    ));
+
+    await fetchModelSummaries(
+      { sort: "newest", ownerUid: "profile-owner" },
+      fetchImpl,
+      "https://functions.example/listModels",
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://functions.example/listModels?sort=newest&ownerUid=profile-owner&limit=24",
+      expect.any(Object),
+    );
+  });
 });

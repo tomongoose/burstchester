@@ -8,6 +8,7 @@ import {
 
 interface ModelSearchOptions {
   readonly sort: "newest";
+  readonly ownerUid?: string;
 }
 
 interface ListModelsResponse {
@@ -22,6 +23,7 @@ export async function fetchModelSummaries(
 ): Promise<readonly ModelSummary[]> {
   const url = new URL(baseUrl);
   url.searchParams.set("sort", options.sort);
+  if (options.ownerUid) url.searchParams.set("ownerUid", options.ownerUid);
   url.searchParams.set("limit", "24");
 
   const token = await getDatasetApiAuthToken();

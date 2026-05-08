@@ -7,6 +7,7 @@ import { getDatasetApiAuthToken } from "./auth-token";
 interface DatasetSearchOptions {
   readonly filter: SearchFilter;
   readonly sort: SortOrder;
+  readonly ownerUid?: string;
 }
 
 interface DatasetSummaryRecord {
@@ -150,6 +151,7 @@ function appendQuery(
   options: DatasetSearchOptions,
 ): void {
   if (options.filter.language) params.set("language", options.filter.language);
+  if (options.ownerUid) params.set("ownerUid", options.ownerUid);
   if (options.filter.task) params.set("task", options.filter.task);
   if (options.filter.baseModel) params.set("baseModel", options.filter.baseModel);
   if (options.filter.tags.length > 0) params.set("tags", options.filter.tags.join(","));

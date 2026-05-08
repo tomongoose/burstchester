@@ -10,6 +10,7 @@ const LIST_DATASETS_MIN_INTERVAL_MS = 5_000;
 const LIST_DATASETS_QUERY_LIMIT = 100;
 
 export interface ListDatasetsQuery {
+  readonly ownerUid: string | null;
   readonly language: string | null;
   readonly task: string | null;
   readonly baseModel: string | null;
@@ -37,7 +38,7 @@ interface RateLimitResult {
 }
 
 interface ServerQueryFilter {
-  readonly field: "tags" | "language" | "taskType" | "baseModelHint";
+  readonly field: "ownerUid" | "tags" | "language" | "taskType" | "baseModelHint";
   readonly operator: "array-contains-any" | "==";
   readonly value: string | readonly string[];
 }
@@ -130,6 +131,7 @@ export function readListDatasetsQuery(
   const sort = request.query?.sort === "newest" ? "newest" : "popular";
   const limitValue = Number(request.query?.limit ?? 24);
   return {
+    ownerUid: readQueryString(request, "ownerUid"),
     language: readQueryString(request, "language"),
     task: readQueryString(request, "task"),
     baseModel: readQueryString(request, "baseModel"),
@@ -146,6 +148,20 @@ export async function executeListDatasets(
   deps: Pick<HandlerDeps, "db">,
   query: ListDatasetsQuery,
 ): Promise<readonly DatasetRecord[]> {
+  if (query.ownerUid) {
+    const snapshot = await deps.db
+      .collection("datasets")
+      .where("status", "==", "active")
+      .where("ownerUid", "==", query.ownerUid)
+      .limit(LIST_DATASETS_QUERY_LIMIT)
+      .get();
+    const records = snapshot.docs.map((doc) => ({
+      ...(doc.data() as DatasetRecord),
+      id: doc.id,
+    }));
+    return applyListDatasetsQuery(records, query);
+  }
+
   const plan = buildListDatasetsServerQueryPlan(query);
   let ref: FirebaseFirestore.Query = deps.db
     .collection("datasets")
@@ -175,6 +191,19 @@ export function buildListDatasetsServerQueryPlan(
   query: ListDatasetsQuery,
 ): ListDatasetsServerQueryPlan {
   const orderField = query.sort === "newest" ? "createdAt" : "downloadCount";
+
+  if (query.ownerUid) {
+    return {
+      serverFilter: {
+        field: "ownerUid",
+        operator: "==",
+        value: query.ownerUid,
+      },
+      orderField,
+      orderDirection: "desc",
+      queryLimit: LIST_DATASETS_QUERY_LIMIT,
+    };
+  }
 
   if (query.tags.length > 0) {
     return {
@@ -286,6 +315,7 @@ export function buildListDatasetsRateLimitKey(
   return [
     uid,
     query.sort,
+    query.ownerUid ?? "",
     query.language ?? "",
     query.task ?? "",
     query.baseModel ?? "",
@@ -328,6 +358,7 @@ export function applyListDatasetsQuery(
 ): readonly DatasetRecord[] {
   const filtered = datasets
     .filter((dataset) => dataset.status === "active")
+    .filter((dataset) => !query.ownerUid || dataset.ownerUid === query.ownerUid)
     .filter((dataset) => !query.language || dataset.language === query.language)
     .filter((dataset) => !query.task || dataset.taskType === query.task)
     .filter((dataset) => !query.baseModel || dataset.baseModelHint === query.baseModel)

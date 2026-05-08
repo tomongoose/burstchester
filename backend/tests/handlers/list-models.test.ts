@@ -109,6 +109,34 @@ describe("listModelsHandler", () => {
     });
   });
 
+  it("passes ownerUid through for profile-scoped model listings", async () => {
+    const response = createResponse();
+    let receivedQuery: unknown;
+    const handler = createListModelsHandler({
+      verifyIdToken: async () => ({ uid: "viewer" }),
+      listModels: async (query) => {
+        receivedQuery = query;
+        return [];
+      },
+    });
+
+    await handler(
+      {
+        method: "GET",
+        headers: { authorization: "Bearer firebase-id-token" },
+        query: { ownerUid: "profile-owner", limit: "12" },
+      },
+      response as never,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(receivedQuery).toEqual({
+      sort: "newest",
+      ownerUid: "profile-owner",
+      limit: 12,
+    });
+  });
+
   it("serializes model timestamps for frontend rendering", () => {
     const record: ModelRecord = {
       id: "model-1",

@@ -26,6 +26,7 @@ describe("fetchDatasetSummaries", () => {
         datasets: [
           {
             id: "dataset-1",
+            ownerUid: "user-1",
             ownerName: "Alice",
             title: "Legal Korean Set",
             description: "A".repeat(520),
@@ -68,6 +69,26 @@ describe("fetchDatasetSummaries", () => {
     expect(summaries[0].id).toBe("dataset-1");
     expect(summaries[0].size.category).toBe("medium");
     expect(summaries[0].description.endsWith("…")).toBe(true);
+  });
+
+  it("can request datasets scoped to a profile owner", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, datasets: [] }),
+    }));
+
+    await fetchDatasetSummaries(
+      {
+        filter: SearchFilter.create({}),
+        sort: "newest",
+        ownerUid: "profile-owner",
+      },
+      fetchMock as never,
+      "https://example.com/listDatasets",
+    );
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("ownerUid=profile-owner");
   });
 
   it("reuses an in-flight request for identical query params", async () => {
