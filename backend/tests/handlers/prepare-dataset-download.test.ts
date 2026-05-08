@@ -34,13 +34,32 @@ function createResponse(): ResponseStub {
 const STUB_DEPS = {} as Parameters<typeof createPrepareDatasetDownloadHandler>[0];
 
 describe("prepareDatasetDownloadHandler", () => {
+  it("requires authentication before charging points for a dataset download", async () => {
+    const response = createResponse();
+    const handler = createPrepareDatasetDownloadHandler(STUB_DEPS);
+
+    await handler(
+      { headers: {}, query: { datasetId: "dataset-1" }, body: {} },
+      response as never,
+      async () => {
+        throw new Error("should not prepare download");
+      },
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.body).toEqual({
+      ok: false,
+      error: "Missing bearer token.",
+    });
+  });
+
   it("returns 400 when datasetId is missing", async () => {
     const response = createResponse();
     let called = false;
     const handler = createPrepareDatasetDownloadHandler(STUB_DEPS);
 
     await handler(
-      { query: {}, body: {} },
+      { headers: { authorization: "Bearer token" }, query: {}, body: {} },
       response as never,
       async () => {
         called = true;
@@ -58,18 +77,25 @@ describe("prepareDatasetDownloadHandler", () => {
 
   it("returns dataset package metadata", async () => {
     const response = createResponse();
+    const paidDownloads: Array<{ uid: string; datasetId: string }> = [];
     const handler = createPrepareDatasetDownloadHandler(STUB_DEPS);
 
     await handler(
-      { query: { datasetId: "dataset-1" }, body: {} },
+      { headers: { authorization: "Bearer token" }, query: { datasetId: "dataset-1" }, body: {} },
       response as never,
-      async (datasetId) =>
+      async (datasetId, uid) => {
+        paidDownloads.push({ uid, datasetId });
+        return (
         ({
           datasetId,
           cached: false,
+          pointsCharged: 100,
           zipPath: "downloads/dataset-1/dataset-1.zip",
           url: "https://signed.example/downloads/dataset-1/dataset-1.zip",
-        }) as never,
+        }) as never
+        );
+      },
+      async () => ({ uid: "user-1" }),
     );
 
     expect(response.statusCode).toBe(200);
@@ -81,8 +107,10 @@ describe("prepareDatasetDownloadHandler", () => {
       ok: true,
       datasetId: "dataset-1",
       cached: false,
+      pointsCharged: 100,
       zipPath: "downloads/dataset-1/dataset-1.zip",
       url: "https://signed.example/downloads/dataset-1/dataset-1.zip",
     });
+    expect(paidDownloads).toEqual([{ uid: "user-1", datasetId: "dataset-1" }]);
   });
 });

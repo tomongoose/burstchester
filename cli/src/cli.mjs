@@ -10,6 +10,9 @@ import { parseArgs, requiredFlag } from "./lib/args.mjs";
 import {
   fetchDatasetPackageMetadata,
   preflightDatasetDownloads,
+  registerModel,
+  recordModelDownload,
+  updateAssetPointCost,
   uploadDebugDataset,
 } from "./lib/backend.mjs";
 import { BURSTCHESTER_DEFAULTS } from "./lib/default-config.mjs";
@@ -75,6 +78,12 @@ async function main(argv) {
       return;
     case "upload-proxy-log":
       await handleUploadProxyLog(flags);
+      return;
+    case "register-model":
+      await handleRegisterModel(flags);
+      return;
+    case "update-point-cost":
+      await handleUpdatePointCost(flags);
       return;
     case "train":
       await handleTrain(flags);
@@ -294,12 +303,14 @@ async function handleDownloadDataset(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const datasetId = requiredFlag(flags, "dataset-id");
+  const session = await loadActiveSessionForBackendWrite(flags);
   const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
   const extract = flags.extract !== "false";
 
   const metadata = await fetchDatasetPackageMetadata({
     endpointUrl,
     datasetId,
+    idToken: session.idToken,
   });
 
   await ensureDir(outDir);
@@ -327,7 +338,12 @@ async function handleDownloadModel(flags) {
   const repo = typeof flags.repo === "string" ? flags.repo : undefined;
   const file = typeof flags.file === "string" ? flags.file : undefined;
   const revision = typeof flags.revision === "string" ? flags.revision : "main";
-  const session = await loadSession();
+  const session = await loadActiveSessionForBackendWrite(flags);
+  const recordUrl = resolveConfig(
+    flags["record-url"],
+    process.env.BURSTCHESTER_MODEL_DOWNLOAD_URL,
+    BURSTCHESTER_DEFAULTS.modelDownloadUrl,
+  );
 
   if (!url && !(repo && file)) {
     throw new Error("download-model requires --url or --repo with --file");
@@ -341,8 +357,17 @@ async function handleDownloadModel(flags) {
     outDir,
     token: resolveDownloadToken(flags, session),
   });
+  const modelName = typeof flags["model-name"] === "string" && flags["model-name"].trim()
+    ? flags["model-name"].trim()
+    : repo || result.url;
+  const purchase = await recordModelDownload({
+    endpointUrl: recordUrl,
+    idToken: session.idToken,
+    modelName,
+    sourceUrl: result.url,
+  });
 
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ ...result, modelName, purchase }, null, 2)}\n`);
 }
 
 async function handleUploadTestDataset(flags) {
@@ -374,6 +399,7 @@ async function handleUploadTestDataset(flags) {
       license: typeof flags.license === "string" ? flags.license : undefined,
       sourceModel: typeof flags["source-model"] === "string" ? flags["source-model"] : undefined,
       outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
+      pointCost: typeof flags["point-cost"] === "string" ? flags["point-cost"] : undefined,
     },
   });
 
@@ -459,6 +485,7 @@ async function handleUploadProxyLog(flags) {
       language: typeof flags.language === "string" ? flags.language : undefined,
       license: typeof flags.license === "string" ? flags.license : undefined,
       outputModelId: typeof flags["output-model-id"] === "string" ? flags["output-model-id"] : undefined,
+      pointCost: typeof flags["point-cost"] === "string" ? flags["point-cost"] : undefined,
       ...metadata,
     },
   });
@@ -466,6 +493,46 @@ async function handleUploadProxyLog(flags) {
   process.stdout.write(
     `${JSON.stringify({ ok: true, file: resolve(filePath), dataset }, null, 2)}\n`,
   );
+}
+
+async function handleUpdatePointCost(flags) {
+  const session = await loadActiveSessionForBackendWrite(flags);
+  const endpointUrl = resolveConfig(
+    flags["update-url"],
+    process.env.BURSTCHESTER_POINT_COST_UPDATE_URL,
+    BURSTCHESTER_DEFAULTS.pointCostUpdateUrl,
+  );
+  const result = await updateAssetPointCost({
+    endpointUrl,
+    idToken: session.idToken,
+    assetType: requiredFlag(flags, "asset-type"),
+    assetId: requiredFlag(flags, "asset-id"),
+    pointCost: requiredFlag(flags, "point-cost"),
+  });
+
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+}
+
+async function handleRegisterModel(flags) {
+  const session = await loadActiveSessionForBackendWrite(flags);
+  const endpointUrl = resolveConfig(
+    flags["register-url"],
+    process.env.BURSTCHESTER_MODEL_REGISTER_URL,
+    BURSTCHESTER_DEFAULTS.modelRegisterUrl,
+  );
+  const datasetIds = await resolveDatasetIdsInput({ flags, session });
+  const model = await registerModel({
+    endpointUrl,
+    idToken: session.idToken,
+    huggingFaceUrl: requiredFlag(flags, "huggingface-url"),
+    baseModel: requiredFlag(flags, "base-model"),
+    trainingDatasets: datasetIds,
+    trainingMethod: typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora",
+    pointCost: typeof flags["point-cost"] === "string" ? flags["point-cost"] : undefined,
+    ollamaPullUrl: typeof flags["ollama-pull-url"] === "string" ? flags["ollama-pull-url"] : "",
+  });
+
+  process.stdout.write(`${JSON.stringify({ ok: true, model }, null, 2)}\n`);
 }
 
 async function handleTrain(flags) {
@@ -652,11 +719,13 @@ function printUsage() {
       "  dataset-list import --file <path>",
       "  dataset-list export --file <path>",
       "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
-      "  download-model --url <hf-url> [--out-dir <dir>]",
+      "  download-model --url <hf-url> [--model-name <name>] [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
-      "  upload-test-dataset --file <path> [--title <title>] [--upload-url <url>]",
-      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--upload-url <url>]",
+      "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
+      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
+      "  register-model --huggingface-url <hf-url> --base-model <name> [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>]",
+      "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
       "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
       "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
       "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
@@ -727,10 +796,12 @@ async function promptForToken(prompt) {
 }
 
 async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, preflightOnly, workspace }) {
+  const session = await loadActiveSessionForBackendWrite({});
   await ensureDir(workspace);
   const preflight = await preflightDatasetDownloads({
     endpointUrl,
     datasetIds,
+    idToken: session.idToken,
   });
 
   if (preflight.summary.failedCount > 0) {
@@ -750,6 +821,7 @@ async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, prefli
     const metadata = await fetchDatasetPackageMetadata({
       endpointUrl,
       datasetId: currentDatasetId,
+      idToken: session.idToken,
     });
 
     const zipPath = join(workspace, `${currentDatasetId}.zip`);

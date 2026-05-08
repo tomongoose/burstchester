@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { INITIAL_USER_POINTS } from "./purchases";
 
 export interface AuthProfileInput {
   readonly uid: string;
@@ -15,6 +16,7 @@ export interface UserProfileRecord {
   readonly createdAt: Timestamp;
   readonly uploadCount: number;
   readonly downloadCount: number;
+  readonly points: number;
   readonly reputation: number;
 }
 
@@ -30,6 +32,7 @@ export function buildUserProfile(
     createdAt: now,
     uploadCount: 0,
     downloadCount: 0,
+    points: INITIAL_USER_POINTS,
     reputation: 0,
   });
 }

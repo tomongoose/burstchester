@@ -21,6 +21,18 @@ test("BURSTCHESTER_DEFAULTS embeds the shared Firebase project config", () => {
     "https://us-central1-bustchester-e08c3.cloudfunctions.net/prepareDatasetDownload",
   );
   assert.equal(
+    BURSTCHESTER_DEFAULTS.modelDownloadUrl,
+    "https://us-central1-bustchester-e08c3.cloudfunctions.net/recordModelDownload",
+  );
+  assert.equal(
+    BURSTCHESTER_DEFAULTS.modelRegisterUrl,
+    "https://us-central1-bustchester-e08c3.cloudfunctions.net/registerModelHttp",
+  );
+  assert.equal(
+    BURSTCHESTER_DEFAULTS.pointCostUpdateUrl,
+    "https://us-central1-bustchester-e08c3.cloudfunctions.net/updateAssetPointCost",
+  );
+  assert.equal(
     BURSTCHESTER_DEFAULTS.debugUploadUrl,
     "https://us-central1-bustchester-e08c3.cloudfunctions.net/debugUploadDataset",
   );

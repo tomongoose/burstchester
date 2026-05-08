@@ -49,7 +49,43 @@ describe("buildModelRecord", () => {
     );
     expect(record.trainingMethod).toBe("qlora");
     expect(record.trainingDatasets).toEqual(["dataset-1"]);
+    expect(record.pointCost).toBe(100);
     expect(record.evalReports.length).toBe(0);
     expect(typeof record.createdAt.toMillis).toBe("function");
+  });
+
+  it("rejects training metadata for datasets or base models the user has not paid for", () => {
+    expect(() =>
+      buildModelRecord(
+        {
+          ownerUid: "user-1",
+          huggingFaceUrl:
+            "https://huggingface.co/burstchester/legal-ko-qlora/resolve/main/model.gguf",
+          baseModel: "qwen3:14b",
+          trainingDatasets: ["dataset-1", "dataset-2"],
+        },
+        () => "model-123",
+        TEST_NOW,
+        {
+          paidDatasetIds: ["dataset-1"],
+          paidModelNames: ["other-model"],
+        },
+      ),
+    ).toThrow(/paid/i);
+  });
+
+  it("accepts an uploaded model point cost", () => {
+    const record = buildModelRecord(
+      {
+        ownerUid: "user-1",
+        huggingFaceUrl:
+          "https://huggingface.co/burstchester/legal-ko-qlora/resolve/main/model.gguf",
+        pointCost: 250,
+      },
+      () => "model-123",
+      TEST_NOW,
+    );
+
+    expect(record.pointCost).toBe(250);
   });
 });

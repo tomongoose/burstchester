@@ -15,7 +15,9 @@
     "test:rules": "firebase emulators:exec --config firebase.rules.json --only firestore --project burstchester-rules-test \"vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start",
     "seed:import": "npm run build && node lib/scripts/seed-import.js",
-    "seed:dry-run": "npm run build && node lib/scripts/seed-import.js --dry-run"
+    "seed:dry-run": "npm run build && node lib/scripts/seed-import.js --dry-run",
+    "backfill:point-costs": "npm run build && node lib/scripts/backfill-point-costs.js",
+    "backfill:point-costs:dry-run": "npm run build && node lib/scripts/backfill-point-costs.js --dry-run"
   },
   "dependencies": {
     "firebase": "^12.12.1",

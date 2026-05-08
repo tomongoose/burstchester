@@ -3,6 +3,7 @@ import { Timestamp } from "firebase-admin/firestore";
 
 import { evaluateSourceModel, type SourceModelEvaluation } from "./source-models";
 import { type DatasetStatus } from "./dataset-status";
+import { DEFAULT_DATASET_DOWNLOAD_POINT_COST, normalizePointCost } from "./purchases";
 
 export { type DatasetStatus };
 
@@ -49,6 +50,7 @@ export interface UploadMetadataInput {
   readonly sourceModel?: string;
   readonly sourceConfirmed?: string;
   readonly outputModelId?: string;
+  readonly pointCost?: string;
   readonly format?: string;
 }
 
@@ -89,6 +91,7 @@ export interface DatasetRecord {
   readonly sampleHashesMerkleRoot: string;
   readonly likeCount: number;
   readonly downloadCount: number;
+  readonly pointCost?: number;
   readonly reportCount: number;
   readonly searchKeywords: readonly string[];
   readonly status: DatasetStatus;
@@ -238,6 +241,7 @@ export async function processDatasetUpload(
     sourceModel: metadata.sourceModel?.trim() ?? "unknown",
     sourceConfirmed,
     outputModelId: metadata.outputModelId?.trim() || null,
+    pointCost: normalizePointCost(metadata.pointCost, DEFAULT_DATASET_DOWNLOAD_POINT_COST),
     storagePath: `gs://${object.bucket}/${name}`,
     now,
   });
@@ -307,6 +311,7 @@ function createBaseDatasetRecord(input: {
   sourceModel: string;
   sourceConfirmed: boolean;
   outputModelId: string | null;
+  pointCost: number;
   storagePath: string;
   now: Timestamp;
 }): DatasetRecord {
@@ -334,6 +339,7 @@ function createBaseDatasetRecord(input: {
     sourceModelLicense: "other",
     sourceConfirmed: input.sourceConfirmed,
     outputModelId: input.outputModelId,
+    pointCost: input.pointCost,
     parentDatasets: [],
     samplingMethod: null,
     capabilityTags: [],

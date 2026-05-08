@@ -41,6 +41,7 @@ export interface DownloadableDataset {
   readonly sampleHashesMerkleRoot: string;
   readonly likeCount: number;
   readonly downloadCount: number;
+  readonly pointCost?: number;
   readonly reportCount: number;
   readonly searchKeywords: readonly string[];
   readonly status: DatasetStatus;

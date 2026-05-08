@@ -12,7 +12,9 @@ import {
   createListTrendingDatasets,
   createRefreshTrendingDatasets,
 } from "./handlers/trending-datasets";
-import { createRegisterModel } from "./handlers/register-model";
+import { createRegisterModel, createRegisterModelHttp } from "./handlers/register-model";
+import { createRecordModelDownload } from "./handlers/record-model-download";
+import { createUpdateAssetPointCost } from "./handlers/update-asset-point-cost";
 import { createCliGoogleAuth } from "./handlers/cli-google-auth";
 import { createDebugUploadDataset } from "./handlers/debug-upload-dataset";
 import { createUpsertCliProfile } from "./handlers/upsert-cli-profile";
@@ -32,6 +34,9 @@ export const getDataset = createGetDataset(deps);
 export const listTrendingDatasets = createListTrendingDatasets(deps);
 export const refreshTrendingDatasets = createRefreshTrendingDatasets(deps);
 export const registerModel = createRegisterModel(deps);
+export const registerModelHttp = createRegisterModelHttp(deps);
+export const recordModelDownload = createRecordModelDownload(deps);
+export const updateAssetPointCost = createUpdateAssetPointCost(deps);
 export const cliGoogleAuth = createCliGoogleAuth(deps);
 export const debugUploadDataset = createDebugUploadDataset(deps);
 export const upsertCliProfile = createUpsertCliProfile(deps);
