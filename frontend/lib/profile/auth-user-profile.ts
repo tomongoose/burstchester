@@ -19,6 +19,8 @@ export function buildProfileCardDataFromAuthUser(
     displayName,
     email: user.email?.trim() || "",
     photoURL: user.photoURL,
+    description: "",
+    workplace: "",
     uploadCount: 0,
     downloadCount: 0,
     reputation: 0,

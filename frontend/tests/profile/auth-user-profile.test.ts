@@ -16,6 +16,8 @@ describe("buildProfileCardDataFromAuthUser", () => {
       displayName: "Alice",
       email: "alice@example.com",
       photoURL: "https://example.com/a.png",
+      description: "",
+      workplace: "",
       uploadCount: 0,
       downloadCount: 0,
       reputation: 0,

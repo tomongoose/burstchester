@@ -191,6 +191,7 @@ export async function registerModel({
   baseModel,
   trainingDatasets = [],
   trainingMethod,
+  pointCost,
   ollamaPullUrl,
   fetchImpl = fetch,
 }) {
@@ -201,6 +202,7 @@ export async function registerModel({
     baseModel,
     trainingDatasets,
     trainingMethod,
+    pointCost,
     ollamaPullUrl,
   });
   const response = await fetchImpl(request.url, request.options);

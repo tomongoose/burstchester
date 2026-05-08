@@ -6,19 +6,32 @@ import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { getDefaultAuthService } from "@/lib/auth";
 import { validateRestoredLoginUser } from "@/lib/auth/restored-session";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { fetchMyProfile } from "@/lib/profile/profile-api";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 interface AuthNavActionProps {
-  readonly currentUser?: Pick<FirebaseUser, "uid"> | null;
+  readonly currentUser?: NavUser | null;
   readonly signOut?: () => Promise<void>;
+  readonly fetchProfile?: typeof fetchMyProfile;
 }
 
 export function AuthNavAction({
   currentUser,
   signOut,
+  fetchProfile = fetchMyProfile,
 }: AuthNavActionProps = {}): JSX.Element {
-  const [observedUser, setObservedUser] = useState<Pick<FirebaseUser, "uid"> | null>(null);
+  const [observedUser, setObservedUser] = useState<NavUser | null>(null);
+  const [loadedProfileName, setLoadedProfileName] = useState<{
+    readonly uid: string;
+    readonly name: string;
+  } | null>(null);
   const controlled = currentUser !== undefined;
   const displayedUser = controlled ? currentUser : observedUser;
+  const fallbackName = displayedUser ? buildFallbackName(displayedUser) : "";
+  const profileName =
+    displayedUser && loadedProfileName?.uid === displayedUser.uid
+      ? loadedProfileName.name
+      : fallbackName;
 
   useEffect(() => {
     if (controlled) return;
@@ -39,6 +52,34 @@ export function AuthNavAction({
       unsubscribe();
     };
   }, [controlled]);
+
+  useEffect(() => {
+    let active = true;
+    if (!displayedUser) return () => {
+      active = false;
+    };
+
+    if (!hasProfileToken(displayedUser)) return () => {
+      active = false;
+    };
+
+    void fetchProfile({ user: displayedUser })
+      .then((profile) => {
+        if (active) {
+          setLoadedProfileName({
+            uid: displayedUser.uid,
+            name: profile.displayName || fallbackName,
+          });
+        }
+      })
+      .catch(() => {
+        // Keep the auth-derived fallback name when the profile function is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [displayedUser, fallbackName, fetchProfile]);
 
   if (!displayedUser) {
     return (
@@ -62,14 +103,39 @@ export function AuthNavAction({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        void handleSignOut();
-      }}
-      className="inline-flex items-center rounded-md bg-primary-container px-4 py-2 font-label text-[11px] uppercase tracking-[0.22em] text-on-primary-container transition-opacity hover:opacity-85"
-    >
-      Logout
-    </button>
+    <div className="flex items-center gap-sm">
+      <button
+        type="button"
+        onClick={() => {
+          void handleSignOut();
+        }}
+        className="inline-flex items-center rounded-md bg-primary-container px-4 py-2 font-label text-[11px] uppercase tracking-[0.22em] text-on-primary-container transition-opacity hover:opacity-85"
+      >
+        Logout
+      </button>
+      <Link
+        href={buildProfileHref(displayedUser.uid)}
+        className="max-w-36 truncate rounded-md border border-outline-variant/30 px-3 py-2 font-label text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
+        title={profileName || displayedUser.uid}
+      >
+        {profileName || displayedUser.uid}
+      </Link>
+    </div>
   );
+}
+
+type NavUser = Pick<FirebaseUser, "uid"> & Partial<Pick<
+  FirebaseUser,
+  "displayName" | "isAnonymous" | "getIdToken"
+>>;
+
+function buildFallbackName(user: NavUser): string {
+  return user.displayName?.trim()
+    || (user.isAnonymous ? "Anonymous" : "Burstchester user");
+}
+
+function hasProfileToken(user: NavUser): user is NavUser & {
+  readonly getIdToken: () => Promise<string>;
+} {
+  return typeof user.getIdToken === "function";
 }

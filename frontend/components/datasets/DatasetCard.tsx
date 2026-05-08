@@ -2,6 +2,7 @@ import type { JSX } from "react";
 import Link from "next/link";
 import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import { buildDatasetDetailHref } from "@/lib/datasets/routes";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 const MAX_VISIBLE_TAGS = 3;
 
@@ -25,14 +26,14 @@ export function DatasetCard({
           {summary.size.category}
         </span>
       </div>
-      <Link
-        href={buildDatasetDetailHref(summary.id)}
-        className="flex flex-1 flex-col gap-md p-lg focus-visible:outline-2 focus-visible:outline-primary"
-      >
+      <div className="flex flex-1 flex-col gap-md p-lg">
         <div className="flex items-start justify-between gap-sm">
-          <h4 className="font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
+          <Link
+            href={buildDatasetDetailHref(summary.id)}
+            className="font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary"
+          >
             {summary.title}
-          </h4>
+          </Link>
           <button
             type="button"
             aria-pressed={selected}
@@ -67,9 +68,7 @@ export function DatasetCard({
           ))}
         </ul>
         <div className="mt-auto flex items-center justify-between border-t border-outline-variant/20 pt-md">
-          <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
-            by {summary.ownerLabel}
-          </span>
+          <OwnerLink summary={summary} />
           <div className="flex items-center gap-md text-on-surface-variant">
             <span className="inline-flex items-center gap-xs font-label text-label">
               <span className="material-symbols-outlined text-base">favorite</span>
@@ -81,7 +80,27 @@ export function DatasetCard({
             </span>
           </div>
         </div>
-      </Link>
+      </div>
     </article>
+  );
+}
+
+function OwnerLink({ summary }: { readonly summary: DatasetSummary }): JSX.Element {
+  const label = `by ${summary.ownerLabel}`;
+  if (summary.ownerLabel === "Anonymous") {
+    return (
+      <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={buildProfileHref(summary.ownerUid)}
+      className="font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
+    >
+      {label}
+    </Link>
   );
 }

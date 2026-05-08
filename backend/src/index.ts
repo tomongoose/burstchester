@@ -7,6 +7,7 @@ import { createOnReportWrite } from "./handlers/report-write";
 import { createPrepareDownload } from "./handlers/prepare-download";
 import { createPrepareDatasetDownload } from "./handlers/prepare-dataset-download";
 import { createListDatasets } from "./handlers/list-datasets";
+import { createListModels } from "./handlers/list-models";
 import { createGetDataset } from "./handlers/get-dataset";
 import {
   createListTrendingDatasets,
@@ -35,6 +36,7 @@ export const onReportWrite = createOnReportWrite(deps);
 export const prepareDownload = createPrepareDownload(deps);
 export const prepareDatasetDownload = createPrepareDatasetDownload(deps);
 export const listDatasets = createListDatasets(deps);
+export const listModels = createListModels(deps);
 export const getDataset = createGetDataset(deps);
 export const listTrendingDatasets = createListTrendingDatasets(deps);
 export const refreshTrendingDatasets = createRefreshTrendingDatasets(deps);

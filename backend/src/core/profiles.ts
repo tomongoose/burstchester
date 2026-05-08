@@ -13,6 +13,8 @@ export interface UserProfileRecord {
   readonly displayName: string;
   readonly email: string;
   readonly photoURL: string;
+  readonly description: string;
+  readonly workplace: string;
   readonly createdAt: Timestamp;
   readonly uploadCount: number;
   readonly downloadCount: number;
@@ -29,6 +31,8 @@ export function buildUserProfile(
     displayName: user.displayName ?? "Anonymous",
     email: user.email ?? "",
     photoURL: user.photoURL ?? "",
+    description: "",
+    workplace: "",
     createdAt: now,
     uploadCount: 0,
     downloadCount: 0,

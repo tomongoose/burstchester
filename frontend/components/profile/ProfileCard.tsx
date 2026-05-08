@@ -5,6 +5,8 @@ export interface ProfileCardData {
   readonly displayName: string;
   readonly email: string;
   readonly photoURL: string | null;
+  readonly description: string;
+  readonly workplace: string;
   readonly uploadCount: number;
   readonly downloadCount: number;
   readonly reputation: number;
@@ -12,9 +14,15 @@ export interface ProfileCardData {
 
 interface ProfileCardProps {
   readonly profile: ProfileCardData;
+  readonly editable?: boolean;
+  readonly onEdit?: () => void;
 }
 
-export function ProfileCard({ profile }: ProfileCardProps): JSX.Element {
+export function ProfileCard({
+  profile,
+  editable = false,
+  onEdit,
+}: ProfileCardProps): JSX.Element {
   return (
     <section className="overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container">
       <div className="relative h-32 bg-gradient-to-br from-primary-container/20 via-surface-container-high to-surface-container">
@@ -37,14 +45,41 @@ export function ProfileCard({ profile }: ProfileCardProps): JSX.Element {
             </div>
           )}
           <div className="flex-1">
-            <h1 className="font-h1 text-h2 text-on-surface">
-              {profile.displayName}
-            </h1>
-            <p className="font-body text-body-md text-on-surface-variant">
-              {profile.email}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-md">
+              <div>
+                <h1 className="font-h1 text-h2 text-on-surface">
+                  {profile.displayName}
+                </h1>
+                {profile.email ? (
+                  <p className="font-body text-body-md text-on-surface-variant">
+                    {profile.email}
+                  </p>
+                ) : null}
+              </div>
+              {editable ? (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="rounded-xl bg-primary px-lg py-3 font-body text-body-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!onEdit}
+                >
+                  Edit profile
+                </button>
+              ) : null}
+            </div>
+            {profile.workplace ? (
+              <p className="mt-xs font-label text-label uppercase tracking-widest text-primary">
+                {profile.workplace}
+              </p>
+            ) : null}
           </div>
         </div>
+
+        {profile.description ? (
+          <p className="mt-lg max-w-3xl font-body text-body-md text-on-surface-variant">
+            {profile.description}
+          </p>
+        ) : null}
 
         <dl className="mt-xl grid grid-cols-1 gap-md sm:grid-cols-3">
           <Stat label="Uploads" value={profile.uploadCount} icon="upload" />

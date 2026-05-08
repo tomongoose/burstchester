@@ -1,9 +1,13 @@
 import {
   getRedirectResult,
   GoogleAuthProvider,
+  linkWithRedirect,
+  signInWithCredential,
   signInWithRedirect,
   signOut as firebaseSignOut,
+  type AuthCredential,
   type Auth,
+  type User as FirebaseAuthUser,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
@@ -16,10 +20,19 @@ export interface AuthServiceDeps {
     auth: Auth,
     provider: GoogleAuthProvider,
   ) => Promise<void>;
+  readonly linkWithRedirect: (
+    user: FirebaseAuthUser,
+    provider: GoogleAuthProvider,
+  ) => Promise<void>;
   readonly getRedirectResult: (
     auth: Auth,
   ) => Promise<{ user: FirebaseUser } | null>;
+  readonly signInWithCredential: (
+    auth: Auth,
+    credential: AuthCredential,
+  ) => Promise<{ user: FirebaseUser }>;
   readonly firebaseSignOut: (auth: Auth) => Promise<void>;
+  readonly credentialFromRedirectError: (error: unknown) => AuthCredential | null;
   readonly createGoogleProvider: () => GoogleAuthProvider;
   readonly upsertProfile: (user: FirebaseUser) => Promise<void>;
 }
@@ -29,11 +42,23 @@ export class AuthService {
 
   async signInWithGoogle(): Promise<void> {
     const provider = this.deps.createGoogleProvider();
+    const currentUser = this.deps.auth.currentUser;
+    if (currentUser?.isAnonymous) {
+      try {
+        await this.deps.linkWithRedirect(currentUser, provider);
+      } catch (error) {
+        if (!isCredentialAlreadyInUseError(error)) throw error;
+        await this.deps.firebaseSignOut(this.deps.auth);
+        await this.deps.signInWithRedirect(this.deps.auth, provider);
+      }
+      return;
+    }
+
     await this.deps.signInWithRedirect(this.deps.auth, provider);
   }
 
   async handleGoogleRedirectResult(): Promise<boolean> {
-    const result = await this.deps.getRedirectResult(this.deps.auth);
+    const result = await this.readGoogleRedirectResult();
     if (!result?.user) return false;
     await this.ensureUserProfile(result.user);
     return true;
@@ -49,6 +74,35 @@ export class AuthService {
     }
     await this.deps.upsertProfile(user);
   }
+
+  private async readGoogleRedirectResult(): Promise<{ user: FirebaseUser } | null> {
+    try {
+      return await this.deps.getRedirectResult(this.deps.auth);
+    } catch (error) {
+      if (!isCredentialAlreadyInUseError(error)) throw error;
+
+      const credential = this.deps.credentialFromRedirectError(error);
+      await this.deps.firebaseSignOut(this.deps.auth);
+      if (!credential) {
+        await this.deps.signInWithRedirect(
+          this.deps.auth,
+          this.deps.createGoogleProvider(),
+        );
+        return null;
+      }
+
+      return this.deps.signInWithCredential(this.deps.auth, credential);
+    }
+  }
+}
+
+function isCredentialAlreadyInUseError(error: unknown): boolean {
+  return Boolean(
+    error
+      && typeof error === "object"
+      && "code" in error
+      && (error as { code?: unknown }).code === "auth/credential-already-in-use",
+  );
 }
 
 export function buildDefaultAuthService(): AuthService {
@@ -56,8 +110,11 @@ export function buildDefaultAuthService(): AuthService {
     auth: getFirebaseAuth(),
     clock: () => new Date(),
     signInWithRedirect,
+    linkWithRedirect,
     getRedirectResult,
+    signInWithCredential,
     firebaseSignOut,
+    credentialFromRedirectError: (error) => GoogleAuthProvider.credentialFromError(error as never),
     createGoogleProvider: () => new GoogleAuthProvider(),
     upsertProfile: upsertProfileThroughBackend,
   });

@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 import { onRequest } from "firebase-functions/v2/https";
 import { buildModelRecord } from "../core/model-registry";
 import type { HandlerDeps } from "./deps";
+import { verifyBearerAuth } from "./bearer-auth";
 import { readBearerToken, readStringField } from "./_request-helpers";
 
 export function createRegisterModel(
@@ -43,7 +44,7 @@ export function createRegisterModel(
 }
 
 export function createRegisterModelHttp(
-  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "clock" | "generateId">,
+  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "clock" | "generateId" | "fieldValue">,
 ) {
   return onRequest({ region: "us-central1" }, async (request, response) => {
     await handleRegisterModelHttp(deps, request, response);
@@ -51,9 +52,11 @@ export function createRegisterModelHttp(
 }
 
 export async function handleRegisterModelHttp(
-  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "clock" | "generateId">,
+  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "clock" | "generateId" | "fieldValue">,
   request: Pick<Request, "headers" | "body">,
   response: Response,
+  verifyToken: (token: string) => Promise<{ uid: string }> = (token) =>
+    verifyBearerAuth(deps, token),
 ): Promise<void> {
   const bearerToken = readBearerToken(request);
   if (!bearerToken) {
@@ -62,7 +65,7 @@ export async function handleRegisterModelHttp(
   }
 
   try {
-    const decoded = await deps.auth.verifyIdToken(bearerToken);
+    const decoded = await verifyToken(bearerToken);
     const record = await registerModelForUser(deps, {
       ownerUid: decoded.uid,
       huggingFaceUrl: readStringField(request.body, "huggingFaceUrl"),

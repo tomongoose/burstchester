@@ -566,18 +566,20 @@ async function handleUpdatePointCost(flags) {
 }
 
 async function handleRegisterModel(flags) {
-  const session = await loadActiveSessionForBackendWrite(flags);
+  const auth = await loadBackendAuthForDownload(flags);
   const endpointUrl = resolveConfig(
     flags["register-url"],
     process.env.BURSTCHESTER_MODEL_REGISTER_URL,
     BURSTCHESTER_DEFAULTS.modelRegisterUrl,
   );
-  const datasetIds = await resolveDatasetIdsInput({ flags, session });
+  const datasetIds = hasDatasetSelectionFlags(flags)
+    ? await resolveDatasetIdsInput({ flags, session: auth.session })
+    : [];
   const model = await registerModel({
     endpointUrl,
-    idToken: session.idToken,
+    idToken: auth.bearerToken,
     huggingFaceUrl: requiredFlag(flags, "huggingface-url"),
-    baseModel: requiredFlag(flags, "base-model"),
+    baseModel: typeof flags["base-model"] === "string" ? flags["base-model"] : "unknown",
     trainingDatasets: datasetIds,
     trainingMethod: typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora",
     pointCost: typeof flags["point-cost"] === "string" ? flags["point-cost"] : undefined,
@@ -585,6 +587,14 @@ async function handleRegisterModel(flags) {
   });
 
   process.stdout.write(`${JSON.stringify({ ok: true, model }, null, 2)}\n`);
+}
+
+function hasDatasetSelectionFlags(flags) {
+  return Boolean(
+    typeof flags["dataset-id"] === "string"
+      || typeof flags["dataset-file"] === "string"
+      || flags["paste-dataset-list"] === true,
+  );
 }
 
 async function handleTrain(flags) {
@@ -780,7 +790,7 @@ function printUsage() {
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
       "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
-      "  register-model --huggingface-url <hf-url> --base-model <name> [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>]",
+      "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
       "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
       "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",
       "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
