@@ -33,6 +33,10 @@ test("BURSTCHESTER_DEFAULTS embeds the shared Firebase project config", () => {
     "https://us-central1-bustchester-e08c3.cloudfunctions.net/updateAssetPointCost",
   );
   assert.equal(
+    BURSTCHESTER_DEFAULTS.accessTokenUrl,
+    "https://us-central1-bustchester-e08c3.cloudfunctions.net/issueAccessToken",
+  );
+  assert.equal(
     BURSTCHESTER_DEFAULTS.debugUploadUrl,
     "https://us-central1-bustchester-e08c3.cloudfunctions.net/debugUploadDataset",
   );

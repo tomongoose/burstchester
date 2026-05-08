@@ -54,7 +54,7 @@ describe("fetchDatasetSummaries", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("language=ko");
     expect(url).toContain("task=instruction");
     expect(url).toContain("baseModel=qwen3%3A14b");
@@ -71,7 +71,7 @@ describe("fetchDatasetSummaries", () => {
   });
 
   it("reuses an in-flight request for identical query params", async () => {
-    let resolveFetch: ((value: unknown) => void) | null = null;
+    let resolveFetch: (value: unknown) => void = () => {};
     const fetchMock = vi.fn(
       () =>
         new Promise((resolve) => {
@@ -98,7 +98,7 @@ describe("fetchDatasetSummaries", () => {
     await Promise.resolve();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    resolveFetch?.({
+    resolveFetch({
       ok: true,
       json: async () => ({ ok: true, datasets: [] }),
     });

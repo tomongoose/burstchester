@@ -2,7 +2,7 @@ import type { JSX } from "react";
 import Link from "next/link";
 
 interface SiteNavProps {
-  readonly active?: "datasets" | "profile" | null;
+  readonly active?: "datasets" | "profile" | "tokens" | null;
 }
 
 export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
@@ -28,6 +28,16 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
               }`}
             >
               Explore
+            </Link>
+            <Link
+              href="/access-token"
+              className={`border-b pb-1 font-label text-[11px] uppercase tracking-[0.22em] transition-colors ${
+                active === "tokens"
+                  ? "border-primary-container text-primary-container"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              Tokens
             </Link>
             <a
               href="https://github.com/tomato-data/burstchester"

@@ -14,6 +14,7 @@ import {
   type PointChargeResult,
 } from "../core/purchases";
 import type { HandlerDeps } from "./deps";
+import { verifyBearerAuth } from "./bearer-auth";
 import { pathFromGsUrl, readBearerToken, readDatasetId } from "./_request-helpers";
 
 type PrepareDownloadResult = Awaited<ReturnType<typeof prepareDownloadCore>>;
@@ -48,7 +49,7 @@ export function createPrepareDatasetDownloadHandler(
     }
 
     try {
-      const decoded = await (verifyIdToken ?? deps.auth.verifyIdToken)(bearerToken);
+      const decoded = await (verifyIdToken ?? ((token) => verifyBearerAuth(deps, token)))(bearerToken);
       const result = await prepareDownloadRequest(datasetId, decoded.uid);
       response.status(200).json({
         ok: true,

@@ -41,6 +41,44 @@ export function buildDebugUploadRequest({
   };
 }
 
+export function buildIssueAccessTokenRequest({
+  endpointUrl,
+  idToken,
+  label,
+}) {
+  return {
+    url: endpointUrl,
+    options: {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ label }),
+    },
+  };
+}
+
+export async function issueAccessToken({
+  endpointUrl,
+  idToken,
+  label,
+  fetchImpl = fetch,
+}) {
+  const request = buildIssueAccessTokenRequest({
+    endpointUrl,
+    idToken,
+    label,
+  });
+  const response = await fetchImpl(request.url, request.options);
+  const payload = await response.json();
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || `Access token issue failed with status ${response.status}.`);
+  }
+  return payload;
+}
+
 export async function fetchDatasetPackageMetadata({
   endpointUrl,
   datasetId,

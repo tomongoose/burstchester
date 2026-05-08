@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, requiredFlag } from "./lib/args.mjs";
 import {
   fetchDatasetPackageMetadata,
+  issueAccessToken,
   preflightDatasetDownloads,
   registerModel,
   recordModelDownload,
@@ -24,7 +25,7 @@ import {
   refreshFirebaseSession,
   signInAnonymously,
 } from "./lib/firebase-auth.mjs";
-import { downloadHuggingFaceFile } from "./lib/huggingface.mjs";
+import { buildHuggingFaceFileUrl, downloadHuggingFaceFile } from "./lib/huggingface.mjs";
 import { upsertCliProfile } from "./lib/profile.mjs";
 import {
   appendProxyJsonlSample,
@@ -60,6 +61,9 @@ async function main(argv) {
   switch (command) {
     case "auth":
       await handleAuth(flags, positionals);
+      return;
+    case "access-token":
+      await handleAccessToken(flags, positionals);
       return;
     case "download-dataset":
       await handleDownloadDataset(flags);
@@ -168,6 +172,33 @@ async function handleAuth(flags, positionals) {
       return;
     default:
       throw new Error(`Unknown auth subcommand: ${subcommand}`);
+  }
+}
+
+async function handleAccessToken(flags, positionals) {
+  const subcommand = positionals[0] || "issue";
+
+  switch (subcommand) {
+    case "issue": {
+      const session = await loadActiveSessionForBackendWrite(flags);
+      const endpointUrl = resolveConfig(
+        flags["token-url"],
+        process.env.BURSTCHESTER_ACCESS_TOKEN_URL,
+        BURSTCHESTER_DEFAULTS.accessTokenUrl,
+      );
+      const label = typeof flags.label === "string" && flags.label.trim()
+        ? flags.label.trim()
+        : "CLI access token";
+      const issued = await issueAccessToken({
+        endpointUrl,
+        idToken: session.idToken,
+        label,
+      });
+      process.stdout.write(`${JSON.stringify(issued, null, 2)}\n`);
+      return;
+    }
+    default:
+      throw new Error(`Unknown access-token subcommand: ${subcommand}`);
   }
 }
 
@@ -296,6 +327,26 @@ async function handleAuthProfile(flags) {
   );
 }
 
+async function loadBackendAuthForDownload(flags) {
+  const accessToken = resolveConfig(
+    flags["access-token"],
+    process.env.BURSTCHESTER_ACCESS_TOKEN,
+  );
+
+  if (accessToken) {
+    return {
+      bearerToken: accessToken,
+      session: await loadSession(),
+    };
+  }
+
+  const session = await loadActiveSessionForBackendWrite(flags);
+  return {
+    bearerToken: session.idToken,
+    session,
+  };
+}
+
 async function handleDownloadDataset(flags) {
   const endpointUrl = resolveConfig(
     flags["backend-url"],
@@ -303,14 +354,14 @@ async function handleDownloadDataset(flags) {
     BURSTCHESTER_DEFAULTS.datasetDownloadUrl,
   );
   const datasetId = requiredFlag(flags, "dataset-id");
-  const session = await loadActiveSessionForBackendWrite(flags);
+  const auth = await loadBackendAuthForDownload(flags);
   const outDir = resolve(String(flags["out-dir"] || join(ROOT_DIR, "artifacts", "datasets", datasetId)));
   const extract = flags.extract !== "false";
 
   const metadata = await fetchDatasetPackageMetadata({
     endpointUrl,
     datasetId,
-    idToken: session.idToken,
+    idToken: auth.bearerToken,
   });
 
   await ensureDir(outDir);
@@ -338,7 +389,7 @@ async function handleDownloadModel(flags) {
   const repo = typeof flags.repo === "string" ? flags.repo : undefined;
   const file = typeof flags.file === "string" ? flags.file : undefined;
   const revision = typeof flags.revision === "string" ? flags.revision : "main";
-  const session = await loadActiveSessionForBackendWrite(flags);
+  const auth = await loadBackendAuthForDownload(flags);
   const recordUrl = resolveConfig(
     flags["record-url"],
     process.env.BURSTCHESTER_MODEL_DOWNLOAD_URL,
@@ -349,22 +400,23 @@ async function handleDownloadModel(flags) {
     throw new Error("download-model requires --url or --repo with --file");
   }
 
+  const sourceUrl = url || buildHuggingFaceFileUrl(repo, file, revision);
+  const modelName = typeof flags["model-name"] === "string" && flags["model-name"].trim()
+    ? flags["model-name"].trim()
+    : repo || sourceUrl;
+  const purchase = await recordModelDownload({
+    endpointUrl: recordUrl,
+    idToken: auth.bearerToken,
+    modelName,
+    sourceUrl,
+  });
   const result = await downloadHuggingFaceFile({
     url,
     repo,
     file,
     revision,
     outDir,
-    token: resolveDownloadToken(flags, session),
-  });
-  const modelName = typeof flags["model-name"] === "string" && flags["model-name"].trim()
-    ? flags["model-name"].trim()
-    : repo || result.url;
-  const purchase = await recordModelDownload({
-    endpointUrl: recordUrl,
-    idToken: session.idToken,
-    modelName,
-    sourceUrl: result.url,
+    token: resolveDownloadToken(flags, auth.session),
   });
 
   process.stdout.write(`${JSON.stringify({ ...result, modelName, purchase }, null, 2)}\n`);
@@ -552,6 +604,7 @@ async function handleTrain(flags) {
   const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
     endpointUrl,
+    authFlags: flags,
     preflightOnly: flags["preflight-only"] === true,
     workspace,
   });
@@ -609,6 +662,7 @@ async function handleTrainGemma4E2BFull(flags) {
   const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
     endpointUrl,
+    authFlags: flags,
     preflightOnly: flags["preflight-only"] === true,
     workspace,
   });
@@ -663,6 +717,7 @@ async function handleTrainGemma2BItLora(flags) {
   const prepared = await prepareMergedDatasetForTraining({
     datasetIds,
     endpointUrl,
+    authFlags: flags,
     preflightOnly: flags["preflight-only"] === true,
     workspace,
   });
@@ -712,23 +767,24 @@ function printUsage() {
       "  auth huggingface [--token <hf_token>] [--clear]",
       "  auth profile --display-name <name> [--api-key <firebase-key>] [--profile-url <url>]",
       "  auth logout",
+      "  access-token issue [--label <label>] [--token-url <url>]",
       "  dataset-list add --dataset-id <id>",
       "  dataset-list remove --dataset-id <id>",
       "  dataset-list show",
       "  dataset-list clear",
       "  dataset-list import --file <path>",
       "  dataset-list export --file <path>",
-      "  download-dataset [--backend-url <url>] --dataset-id <id> [--out-dir <dir>] [--extract false]",
-      "  download-model --url <hf-url> [--model-name <name>] [--out-dir <dir>]",
-      "  download-model --repo <org/model> --file <filename> [--revision <rev>] [--out-dir <dir>]",
+      "  download-dataset [--backend-url <url>] --dataset-id <id> [--access-token <token>] [--out-dir <dir>] [--extract false]",
+      "  download-model --url <hf-url> [--access-token <token>] [--model-name <name>] [--out-dir <dir>]",
+      "  download-model --repo <org/model> --file <filename> [--access-token <token>] [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
       "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
       "  register-model --huggingface-url <hf-url> --base-model <name> [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>]",
       "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
-      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--workspace <dir>] [--preflight-only]",
-      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
-      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--workspace <dir>] [--preflight-only]",
+      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );
@@ -795,13 +851,13 @@ async function promptForToken(prompt) {
   }
 }
 
-async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, preflightOnly, workspace }) {
-  const session = await loadActiveSessionForBackendWrite({});
+async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, authFlags = {}, preflightOnly, workspace }) {
+  const auth = await loadBackendAuthForDownload(authFlags);
   await ensureDir(workspace);
   const preflight = await preflightDatasetDownloads({
     endpointUrl,
     datasetIds,
-    idToken: session.idToken,
+    idToken: auth.bearerToken,
   });
 
   if (preflight.summary.failedCount > 0) {
@@ -821,7 +877,7 @@ async function prepareMergedDatasetForTraining({ datasetIds, endpointUrl, prefli
     const metadata = await fetchDatasetPackageMetadata({
       endpointUrl,
       datasetId: currentDatasetId,
-      idToken: session.idToken,
+      idToken: auth.bearerToken,
     });
 
     const zipPath = join(workspace, `${currentDatasetId}.zip`);

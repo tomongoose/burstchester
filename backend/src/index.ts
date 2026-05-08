@@ -15,6 +15,7 @@ import {
 import { createRegisterModel, createRegisterModelHttp } from "./handlers/register-model";
 import { createRecordModelDownload } from "./handlers/record-model-download";
 import { createUpdateAssetPointCost } from "./handlers/update-asset-point-cost";
+import { createIssueAccessToken } from "./handlers/issue-access-token";
 import { createCliGoogleAuth } from "./handlers/cli-google-auth";
 import { createDebugUploadDataset } from "./handlers/debug-upload-dataset";
 import { createUpsertCliProfile } from "./handlers/upsert-cli-profile";
@@ -37,6 +38,7 @@ export const registerModel = createRegisterModel(deps);
 export const registerModelHttp = createRegisterModelHttp(deps);
 export const recordModelDownload = createRecordModelDownload(deps);
 export const updateAssetPointCost = createUpdateAssetPointCost(deps);
+export const issueAccessToken = createIssueAccessToken(deps);
 export const cliGoogleAuth = createCliGoogleAuth(deps);
 export const debugUploadDataset = createDebugUploadDataset(deps);
 export const upsertCliProfile = createUpsertCliProfile(deps);

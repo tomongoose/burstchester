@@ -17,6 +17,7 @@ export const BURSTCHESTER_DEFAULTS = Object.freeze({
   functionsBaseUrl: FUNCTIONS_BASE_URL,
   healthCheckUrl: `${FUNCTIONS_BASE_URL}/healthCheck`,
   profileUrl: `${FUNCTIONS_BASE_URL}/upsertCliProfile`,
+  accessTokenUrl: `${FUNCTIONS_BASE_URL}/issueAccessToken`,
   datasetDownloadUrl: `${FUNCTIONS_BASE_URL}/prepareDatasetDownload`,
   modelDownloadUrl: `${FUNCTIONS_BASE_URL}/recordModelDownload`,
   modelRegisterUrl: `${FUNCTIONS_BASE_URL}/registerModelHttp`,

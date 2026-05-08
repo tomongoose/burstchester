@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildDatasetDownloadUrl,
+  buildIssueAccessTokenRequest,
   buildRegisterModelRequest,
   buildRecordModelDownloadRequest,
   buildUpdateAssetPointCostRequest,
@@ -18,6 +19,18 @@ test("buildDatasetDownloadUrl appends datasetId query parameter", () => {
     url,
     "https://us-central1-demo.cloudfunctions.net/prepareDatasetDownload?datasetId=dataset-1",
   );
+});
+
+test("buildIssueAccessTokenRequest posts an authenticated token label", () => {
+  const request = buildIssueAccessTokenRequest({
+    endpointUrl: "https://functions.example/issueAccessToken",
+    idToken: "firebase-id-token",
+    label: "Colab",
+  });
+
+  assert.equal(request.url, "https://functions.example/issueAccessToken");
+  assert.equal(request.options.headers.authorization, "Bearer firebase-id-token");
+  assert.deepEqual(JSON.parse(request.options.body), { label: "Colab" });
 });
 
 test("buildRecordModelDownloadRequest posts authenticated model purchase metadata", () => {

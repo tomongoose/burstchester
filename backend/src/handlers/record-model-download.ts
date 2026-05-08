@@ -11,6 +11,7 @@ import {
   type PointChargeResult,
 } from "../core/purchases";
 import type { HandlerDeps } from "./deps";
+import { verifyBearerAuth } from "./bearer-auth";
 import { readBearerToken, readStringField } from "./_request-helpers";
 
 export interface RecordModelDownloadHandlerDeps {
@@ -66,7 +67,7 @@ export function createRecordModelDownload(
   deps: Pick<HandlerDeps, "auth" | "database" | "db" | "fieldValue">,
 ) {
   const handler = createRecordModelDownloadHandler({
-    verifyIdToken: deps.auth.verifyIdToken,
+    verifyIdToken: (token) => verifyBearerAuth(deps, token),
     recordModelDownload: (input) => recordModelDownload(deps, input),
   });
   return onRequest({ region: "us-central1" }, handler);

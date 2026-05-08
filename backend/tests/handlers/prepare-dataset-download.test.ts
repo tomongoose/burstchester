@@ -113,4 +113,29 @@ describe("prepareDatasetDownloadHandler", () => {
     });
     expect(paidDownloads).toEqual([{ uid: "user-1", datasetId: "dataset-1" }]);
   });
+
+  it("accepts a backend-issued access token for dataset downloads", async () => {
+    const response = createResponse();
+    const paidDownloads: Array<{ uid: string; datasetId: string }> = [];
+    const handler = createPrepareDatasetDownloadHandler(STUB_DEPS);
+
+    await handler(
+      { headers: { authorization: "Bearer bst_token-id_secret" }, query: { datasetId: "dataset-1" }, body: {} },
+      response as never,
+      async (datasetId, uid) => {
+        paidDownloads.push({ uid, datasetId });
+        return ({
+          cached: true,
+          zipPath: "downloads/dataset-1/dataset-1.zip",
+          url: "https://signed.example/dataset-1.zip",
+        }) as never;
+      },
+      async () => ({ uid: "user-from-access-token" }),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(paidDownloads).toEqual([
+      { uid: "user-from-access-token", datasetId: "dataset-1" },
+    ]);
+  });
 });

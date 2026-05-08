@@ -23,7 +23,7 @@ describe("getDatasetApiAuthToken", () => {
     const second = await getDatasetApiAuthToken(fetchMock as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("identitytoolkit.googleapis.com/v1/accounts:signUp");
     expect(init.method).toBe("POST");
     expect(first).toBe("anon-id-token");
