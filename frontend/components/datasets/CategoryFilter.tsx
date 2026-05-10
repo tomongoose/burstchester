@@ -74,7 +74,7 @@ export function CategoryFilter({
                 active={active}
                 onClick={() => onChange(withField("language", active ? null : lang))}
               >
-                {lang}
+                {formatLanguageLabel(lang)}
               </Chip>
             );
           })}
@@ -182,6 +182,10 @@ function Chip({
       {children}
     </button>
   );
+}
+
+function formatLanguageLabel(language: Language): string {
+  return language === "multi" ? "all" : language;
 }
 
 interface SearchFilterPatch {

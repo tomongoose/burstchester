@@ -27,6 +27,19 @@ describe("CategoryFilter", () => {
     expect(next.language).toBe("ko");
   });
 
+  it("renders the multi-language chip as all while preserving the multi filter value", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<CategoryFilter filter={SearchFilter.create({})} onChange={onChange} />);
+
+    expect(screen.queryByRole("button", { name: /^multi$/i })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /^all$/i }));
+
+    const next = onChange.mock.calls[0][0] as SearchFilter;
+    expect(next.language).toBe("multi");
+  });
+
   it("marks the active chip with aria-pressed=true", () => {
     render(<CategoryFilter filter={SearchFilter.create({ language: "ko" })} onChange={() => {}} />);
 
