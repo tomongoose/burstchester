@@ -38,5 +38,8 @@ describe("DatasetDetailPanel", () => {
     expect(screen.getByTestId("download-button")).toHaveTextContent(
       "gemma4-full-debug-3",
     );
+    expect(
+      screen.queryByRole("link", { name: /open colab notebook/i }),
+    ).toBeNull();
   });
 });

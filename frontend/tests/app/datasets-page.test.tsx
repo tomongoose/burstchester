@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 const useSearchParamsMock = vi.fn();
 const useDatasetSearchMock = vi.fn();
+const useModelSearchMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => useSearchParamsMock(),
@@ -11,6 +12,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/datasets/use-dataset-search", () => ({
   useDatasetSearch: (...args: unknown[]) => useDatasetSearchMock(...args),
+}));
+
+vi.mock("@/lib/models/use-model-search", () => ({
+  useModelSearch: (...args: unknown[]) => useModelSearchMock(...args),
 }));
 
 vi.mock("@/components/site-nav/SiteNav", () => ({
@@ -43,6 +48,15 @@ vi.mock("@/components/datasets/DatasetDetailPanel", () => ({
   ),
 }));
 
+vi.mock("@/components/models/ModelGrid", () => ({
+  ModelGrid: ({ models }: { models: readonly { id: string }[] }) => (
+    <div>
+      models:
+      {models.map((model) => model.id).join(",")}
+    </div>
+  ),
+}));
+
 import DatasetsPage from "@/app/datasets/page";
 
 describe("DatasetsPage", () => {
@@ -51,6 +65,11 @@ describe("DatasetsPage", () => {
     useSearchParamsMock.mockReset();
     useDatasetSearchMock.mockReturnValue({
       summaries: [],
+      loading: false,
+    });
+    useModelSearchMock.mockReset();
+    useModelSearchMock.mockReturnValue({
+      models: [],
       loading: false,
     });
   });
@@ -103,5 +122,24 @@ describe("DatasetsPage", () => {
 
     expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
     expect(screen.queryByText("ds-1")).not.toBeInTheDocument();
+  });
+
+  it("switches explore mode between datasets and models", async () => {
+    useSearchParamsMock.mockReturnValue({
+      get: () => null,
+    });
+    useModelSearchMock.mockReturnValue({
+      models: [{ id: "model-1" }],
+      loading: false,
+    });
+    const user = userEvent.setup();
+
+    render(<DatasetsPage />);
+    await user.click(screen.getByRole("button", { name: /models/i }));
+
+    expect(screen.getByText(/browse trained models/i)).toBeInTheDocument();
+    expect(screen.getByText(/showing 1 model/i)).toBeInTheDocument();
+    expect(screen.getByText("models:model-1")).toBeInTheDocument();
+    expect(screen.queryByText("filters")).not.toBeInTheDocument();
   });
 });

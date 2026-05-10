@@ -151,15 +151,6 @@ export function DatasetDetailPanel({
           <p className="font-label text-label uppercase tracking-[0.2em] text-on-surface-variant">
             Includes Modelfile.template + README.md + LICENSE
           </p>
-          <a
-            href="https://colab.research.google.com/github/burstchester/seed-notebook/blob/main/unsloth_ollama.ipynb"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2 rounded border border-outline-variant/30 px-5 py-3 font-label text-[11px] uppercase tracking-[0.2em] text-on-surface transition-colors hover:bg-surface-container-high"
-          >
-            <span className="material-symbols-outlined">open_in_new</span>
-            Open Colab notebook
-          </a>
         </aside>
       </div>
     </section>

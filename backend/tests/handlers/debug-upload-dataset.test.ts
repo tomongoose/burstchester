@@ -140,6 +140,7 @@ describe("debugUploadDatasetHandler", () => {
             '{"messages":[{"role":"user","content":"질문"},{"role":"assistant","content":"답변"}]}\n',
           datasetId: "user-provided-id",
           title: "Legal Debug Dataset",
+          pointCost: "25",
         },
       },
       response as never,
@@ -147,6 +148,7 @@ describe("debugUploadDatasetHandler", () => {
 
     expect(captured[0].datasetId).toBeUndefined();
     expect(captured[0].title).toBe("Legal Debug Dataset");
+    expect(captured[0].pointCost).toBe("25");
     expect(response.body).toEqual({
       ok: true,
       dataset: {

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 const PRODUCT = [
   { label: "Datasets", href: "/datasets" },
+  { label: "Points", href: "/points" },
   { label: "Get Ollama", href: "https://ollama.com" },
 ] as const;
 

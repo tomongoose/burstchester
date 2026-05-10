@@ -7,12 +7,16 @@ import { CategoryFilter } from "@/components/datasets/CategoryFilter";
 import { DatasetDetailPanel } from "@/components/datasets/DatasetDetailPanel";
 import { DatasetGrid } from "@/components/datasets/DatasetGrid";
 import { DatasetSelectionTray } from "@/components/datasets/DatasetSelectionTray";
+import { ModelGrid } from "@/components/models/ModelGrid";
 import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SearchFilter } from "@/lib/domain/search-filter";
 import { useDatasetSearch } from "@/lib/datasets/use-dataset-search";
+import { useModelSearch } from "@/lib/models/use-model-search";
 import type { SortOrder } from "@/lib/datasets/build-query";
 import { DATASET_DETAIL_ANCHOR } from "@/lib/datasets/routes";
+
+type ExploreAsset = "datasets" | "models";
 
 export default function DatasetsPage() {
   return (
@@ -25,12 +29,15 @@ export default function DatasetsPage() {
 function DatasetsPageContent() {
   const searchParams = useSearchParams();
   const selectedDatasetId = searchParams.get("dataset") ?? "";
+  const initialAsset = searchParams.get("asset") === "models" ? "models" : "datasets";
+  const [activeAsset, setActiveAsset] = useState<ExploreAsset>(initialAsset);
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
   const [sort, setSort] = useState<SortOrder>("popular");
   const [selectedDatasetIds, setSelectedDatasetIds] = useState<readonly string[]>(
     [],
   );
   const { summaries, loading } = useDatasetSearch(filter, sort);
+  const { models, loading: modelsLoading } = useModelSearch();
   const detailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -57,35 +64,58 @@ function DatasetsPageContent() {
           <div className="flex flex-wrap items-end justify-between gap-md">
             <div>
               <h1 className="font-h1 text-h2 text-on-surface md:text-h1">
-                Datasets
+                Explore
               </h1>
               <p className="mt-sm font-body text-body-md text-on-surface-variant">
-                Browse community-curated fine-tuning datasets.
+                {activeAsset === "datasets"
+                  ? "Browse community-curated fine-tuning datasets."
+                  : "Browse trained models registered by the community."}
               </p>
             </div>
-            <SortToggle sort={sort} onChange={setSort} />
+            <div className="flex flex-wrap items-center gap-sm">
+              <ExploreAssetToggle
+                activeAsset={activeAsset}
+                onChange={setActiveAsset}
+              />
+              {activeAsset === "datasets" ? (
+                <SortToggle sort={sort} onChange={setSort} />
+              ) : null}
+            </div>
           </div>
         </div>
 
-        <div
-          id={DATASET_DETAIL_ANCHOR}
-          ref={detailRef}
-          className="mx-auto max-w-container-max px-gutter pb-lg"
-        >
-          {selectedDatasetId ? (
-            <DatasetDetailPanel datasetId={selectedDatasetId} />
-          ) : null}
-        </div>
+        {activeAsset === "datasets" ? (
+          <div
+            id={DATASET_DETAIL_ANCHOR}
+            ref={detailRef}
+            className="mx-auto max-w-container-max px-gutter pb-lg"
+          >
+            {selectedDatasetId ? (
+              <DatasetDetailPanel datasetId={selectedDatasetId} />
+            ) : null}
+          </div>
+        ) : null}
 
-        <div className="mx-auto grid max-w-container-max gap-gutter px-gutter pb-xl lg:grid-cols-[260px_1fr]">
-          <CategoryFilter filter={filter} onChange={setFilter} />
+        <div
+          className={[
+            "mx-auto grid max-w-container-max gap-gutter px-gutter pb-xl",
+            activeAsset === "datasets" ? "lg:grid-cols-[260px_1fr]" : "",
+          ].join(" ")}
+        >
+          {activeAsset === "datasets" ? (
+            <CategoryFilter filter={filter} onChange={setFilter} />
+          ) : null}
           <section className="space-y-md">
             <div className="font-body text-body-md text-on-surface-variant">
-              {loading
-                ? "Loading datasets…"
-                : `Showing ${summaries.length} dataset${summaries.length === 1 ? "" : "s"}`}
+              {activeAsset === "datasets"
+                ? loading
+                  ? "Loading datasets…"
+                  : `Showing ${summaries.length} dataset${summaries.length === 1 ? "" : "s"}`
+                : modelsLoading
+                  ? "Loading models…"
+                  : `Showing ${models.length} model${models.length === 1 ? "" : "s"}`}
             </div>
-            {loading ? (
+            {activeAsset === "datasets" && loading ? (
               <ul className="grid list-none gap-gutter sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, idx) => (
                   <li
@@ -94,24 +124,40 @@ function DatasetsPageContent() {
                   />
                 ))}
               </ul>
-            ) : (
+            ) : null}
+            {activeAsset === "datasets" && !loading ? (
               <DatasetGrid
                 summaries={summaries}
                 selectedDatasetIds={selectedDatasetIds}
                 onToggleSelect={handleToggleDatasetSelection}
               />
-            )}
+            ) : null}
+            {activeAsset === "models" && modelsLoading ? (
+              <ul className="grid list-none gap-gutter sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <li
+                    key={idx}
+                    className="h-64 animate-pulse rounded-xl border border-outline-variant/30 bg-surface-container-low"
+                  />
+                ))}
+              </ul>
+            ) : null}
+            {activeAsset === "models" && !modelsLoading ? (
+              <ModelGrid models={models} />
+            ) : null}
           </section>
         </div>
       </main>
-      <DatasetSelectionTray
-        selectedDatasetIds={selectedDatasetIds}
-        onRemoveDataset={(datasetId) =>
-          setSelectedDatasetIds((current) =>
-            current.filter((value) => value !== datasetId),
-          )
-        }
-      />
+      {activeAsset === "datasets" ? (
+        <DatasetSelectionTray
+          selectedDatasetIds={selectedDatasetIds}
+          onRemoveDataset={(datasetId) =>
+            setSelectedDatasetIds((current) =>
+              current.filter((value) => value !== datasetId),
+            )
+          }
+        />
+      ) : null}
       <SiteFooter />
     </>
   );
@@ -169,6 +215,39 @@ function SortToggle({
             "rounded-lg px-4 py-2 font-body text-body-md transition-colors",
             sort === opt.value
               ? "bg-primary text-on-primary"
+              : "text-on-surface-variant hover:text-primary",
+          ].join(" ")}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ExploreAssetToggle({
+  activeAsset,
+  onChange,
+}: {
+  readonly activeAsset: ExploreAsset;
+  readonly onChange: (next: ExploreAsset) => void;
+}) {
+  const options: readonly { value: ExploreAsset; label: string }[] = [
+    { value: "datasets", label: "Datasets" },
+    { value: "models", label: "Models" },
+  ];
+  return (
+    <div className="inline-flex rounded-xl border border-outline-variant/30 bg-surface-container p-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          aria-pressed={activeAsset === opt.value}
+          onClick={() => onChange(opt.value)}
+          className={[
+            "rounded-lg px-4 py-2 font-body text-body-md transition-colors",
+            activeAsset === opt.value
+              ? "bg-tertiary text-on-tertiary"
               : "text-on-surface-variant hover:text-primary",
           ].join(" ")}
         >

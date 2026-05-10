@@ -7,12 +7,20 @@ import { createOnReportWrite } from "./handlers/report-write";
 import { createPrepareDownload } from "./handlers/prepare-download";
 import { createPrepareDatasetDownload } from "./handlers/prepare-dataset-download";
 import { createListDatasets } from "./handlers/list-datasets";
+import { createListModels } from "./handlers/list-models";
 import { createGetDataset } from "./handlers/get-dataset";
 import {
   createListTrendingDatasets,
   createRefreshTrendingDatasets,
 } from "./handlers/trending-datasets";
-import { createRegisterModel } from "./handlers/register-model";
+import { createRegisterModel, createRegisterModelHttp } from "./handlers/register-model";
+import { createRecordModelDownload } from "./handlers/record-model-download";
+import { createUpdateAssetPointCost } from "./handlers/update-asset-point-cost";
+import { createIssueAccessToken } from "./handlers/issue-access-token";
+import {
+  createListAccessTokens,
+  createRevokeAccessToken,
+} from "./handlers/access-token-management";
 import { createCliGoogleAuth } from "./handlers/cli-google-auth";
 import { createDebugUploadDataset } from "./handlers/debug-upload-dataset";
 import { createUpsertCliProfile } from "./handlers/upsert-cli-profile";
@@ -28,10 +36,17 @@ export const onReportWrite = createOnReportWrite(deps);
 export const prepareDownload = createPrepareDownload(deps);
 export const prepareDatasetDownload = createPrepareDatasetDownload(deps);
 export const listDatasets = createListDatasets(deps);
+export const listModels = createListModels(deps);
 export const getDataset = createGetDataset(deps);
 export const listTrendingDatasets = createListTrendingDatasets(deps);
 export const refreshTrendingDatasets = createRefreshTrendingDatasets(deps);
 export const registerModel = createRegisterModel(deps);
+export const registerModelHttp = createRegisterModelHttp(deps);
+export const recordModelDownload = createRecordModelDownload(deps);
+export const updateAssetPointCost = createUpdateAssetPointCost(deps);
+export const issueAccessToken = createIssueAccessToken(deps);
+export const listAccessTokens = createListAccessTokens(deps);
+export const revokeAccessToken = createRevokeAccessToken(deps);
 export const cliGoogleAuth = createCliGoogleAuth(deps);
 export const debugUploadDataset = createDebugUploadDataset(deps);
 export const upsertCliProfile = createUpsertCliProfile(deps);

@@ -76,6 +76,39 @@ describe("DatasetCard", () => {
     );
   });
 
+  it("links non-anonymous owners to their public profile", () => {
+    const summary = buildDatasetSummary(baseRecord);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /by Alice/i })).toHaveAttribute(
+      "href",
+      "/profile?user=uid-1",
+    );
+  });
+
+  it("does not link anonymous owners", () => {
+    const summary = buildDatasetSummary({
+      ...baseRecord,
+      ownerName: "Anonymous",
+    });
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("by Anonymous")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /by Anonymous/i })).toBeNull();
+  });
+
   it("renders a dataset selection toggle", () => {
     const summary = buildDatasetSummary(baseRecord);
     render(

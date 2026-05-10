@@ -107,6 +107,7 @@ describe("listDatasetsHandler", () => {
         expect(uid).toBe("u-alice");
         expect(rateLimitKey).toBe(
           buildListDatasetsRateLimitKey("u-alice", {
+            ownerUid: null,
             language: "ko",
             task: null,
             baseModel: null,
@@ -120,6 +121,7 @@ describe("listDatasetsHandler", () => {
     );
 
     expect(receivedQuery).toEqual({
+      ownerUid: null,
       language: "ko",
       task: null,
       baseModel: null,
@@ -189,6 +191,7 @@ describe("listDatasetsHandler", () => {
       async (_uid, rateLimitKey) => {
         expect(rateLimitKey).toBe(
           buildListDatasetsRateLimitKey("u-repeat", {
+            ownerUid: null,
             language: null,
             task: null,
             baseModel: null,
@@ -246,6 +249,7 @@ describe("listDatasetsHandler", () => {
 
     expect(seenKeys).toEqual([
       buildListDatasetsRateLimitKey("u-repeat", {
+        ownerUid: null,
         language: null,
         task: null,
         baseModel: null,
@@ -254,6 +258,7 @@ describe("listDatasetsHandler", () => {
         limit: 24,
       }),
       buildListDatasetsRateLimitKey("u-repeat", {
+        ownerUid: null,
         language: "ko",
         task: null,
         baseModel: null,
@@ -262,6 +267,40 @@ describe("listDatasetsHandler", () => {
         limit: 24,
       }),
     ]);
+  });
+
+  it("reads ownerUid for profile-scoped dataset listings", async () => {
+    const response = createResponse();
+    let receivedQuery: unknown;
+    const handler = createListDatasetsHandler(STUB_DEPS);
+
+    await handler(
+      {
+        method: "GET",
+        headers: { authorization: "Bearer firebase-id-token" },
+        query: { ownerUid: "profile-owner", sort: "newest" },
+      },
+      response as never,
+      async (query) => {
+        receivedQuery = query;
+        return [] as never;
+      },
+      async () => ({ uid: "viewer" }) as never,
+      async (_uid, rateLimitKey) => {
+        expect(rateLimitKey).toContain("profile-owner");
+        return { allowed: true } as never;
+      },
+    );
+
+    expect(receivedQuery).toEqual({
+      ownerUid: "profile-owner",
+      language: null,
+      task: null,
+      baseModel: null,
+      tags: [],
+      sort: "newest",
+      limit: 24,
+    });
   });
 
   it("filters and sorts dataset records in memory", () => {
@@ -317,6 +356,7 @@ describe("listDatasetsHandler", () => {
         },
       ] as never,
       {
+        ownerUid: null,
         language: "ko",
         task: "instruction",
         baseModel: "qwen3:14b",
@@ -333,6 +373,7 @@ describe("listDatasetsHandler", () => {
   it("prefers tag filtering in the server-side query plan and caps the query size", () => {
     expect(
       buildListDatasetsServerQueryPlan({
+        ownerUid: null,
         language: "ko",
         task: "instruction",
         baseModel: "qwen3:14b",
@@ -355,6 +396,7 @@ describe("listDatasetsHandler", () => {
   it("uses only active+sort when no narrowing filter is provided", () => {
     expect(
       buildListDatasetsServerQueryPlan({
+        ownerUid: null,
         language: null,
         task: null,
         baseModel: null,

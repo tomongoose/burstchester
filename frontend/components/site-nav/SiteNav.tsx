@@ -1,8 +1,9 @@
 import type { JSX } from "react";
 import Link from "next/link";
+import { AuthNavAction } from "./AuthNavAction";
 
 interface SiteNavProps {
-  readonly active?: "datasets" | "profile" | null;
+  readonly active?: "datasets" | "profile" | "tokens" | "points" | null;
 }
 
 export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
@@ -29,6 +30,26 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
             >
               Explore
             </Link>
+            <Link
+              href="/access-token"
+              className={`border-b pb-1 font-label text-[11px] uppercase tracking-[0.22em] transition-colors ${
+                active === "tokens"
+                  ? "border-primary-container text-primary-container"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              Tokens
+            </Link>
+            <Link
+              href="/points"
+              className={`border-b pb-1 font-label text-[11px] uppercase tracking-[0.22em] transition-colors ${
+                active === "points"
+                  ? "border-primary-container text-primary-container"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              Points
+            </Link>
             <a
               href="https://github.com/tomato-data/burstchester"
               target="_blank"
@@ -40,12 +61,7 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
           </div>
         </div>
         <div className="flex items-center gap-sm">
-          <Link
-            href="/login"
-            className="inline-flex items-center rounded-md bg-primary-container px-4 py-2 font-label text-[11px] uppercase tracking-[0.22em] text-on-primary-container transition-opacity hover:opacity-85"
-          >
-            Sign in
-          </Link>
+          <AuthNavAction />
         </div>
       </div>
     </nav>

@@ -74,6 +74,7 @@ export function createDebugUploadDatasetHandler(
           outputModelId:
             readStringField(request.body, "outputModelId") ||
             metadata.outputModelId,
+          pointCost: readStringField(request.body, "pointCost") || metadata.pointCost,
         },
       });
 
@@ -170,6 +171,10 @@ export async function uploadDebugDatasetRecord(
         outputModelId:
           typeof input.metadata.outputModelId === "string"
             ? input.metadata.outputModelId.trim()
+            : "",
+        pointCost:
+          typeof input.metadata.pointCost === "string"
+            ? input.metadata.pointCost.trim()
             : "",
       },
     },

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/datasets/auth-token", () => ({
+  getDatasetApiAuthToken: async () => "anon-token",
+}));
+
 import { requestPrepareDownloadHttp } from "@/lib/datasets/prepare-download-http";
 
 describe("requestPrepareDownloadHttp", () => {
@@ -25,6 +29,9 @@ describe("requestPrepareDownloadHttp", () => {
       "https://example.com/prepareDatasetDownload?datasetId=dataset-1",
       {
         method: "GET",
+        headers: {
+          Authorization: "Bearer anon-token",
+        },
       },
     );
     expect(result.url).toBe("https://signed.example/dataset-1.zip");

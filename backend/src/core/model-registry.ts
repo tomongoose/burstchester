@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { DEFAULT_MODEL_DOWNLOAD_POINT_COST, normalizePointCost } from "./purchases";
 
 export interface ModelEvalReport {
   readonly metric: string;
@@ -15,6 +16,7 @@ export interface ModelRecord {
   readonly evalReports: readonly ModelEvalReport[];
   readonly ollamaPullUrl: string | null;
   readonly huggingFaceUrl: string;
+  readonly pointCost: number;
   readonly createdAt: Timestamp;
   readonly updatedAt: Timestamp;
 }
@@ -26,6 +28,12 @@ export interface ModelRegistrationInput {
   readonly trainingDatasets?: readonly string[];
   readonly trainingMethod?: string;
   readonly ollamaPullUrl?: string | null;
+  readonly pointCost?: unknown;
+}
+
+export interface PaidTrainingAssets {
+  readonly paidDatasetIds: readonly string[];
+  readonly paidModelNames: readonly string[];
 }
 
 export function validateHuggingFaceDownloadUrl(url: string): { ok: true } | { ok: false; reason: string } {
@@ -63,6 +71,7 @@ export function buildModelRecord(
   input: ModelRegistrationInput,
   idFactory: () => string,
   now: Timestamp,
+  paidAssets?: PaidTrainingAssets,
 ): ModelRecord {
   const huggingFaceUrl = input.huggingFaceUrl.trim();
   const urlValidation = validateHuggingFaceDownloadUrl(huggingFaceUrl);
@@ -75,18 +84,43 @@ export function buildModelRecord(
     throw new Error("ownerUid is required.");
   }
 
+  const baseModel = input.baseModel?.trim() || "unknown";
+  const trainingDatasets = Array.from(new Set((input.trainingDatasets ?? []).map((value) => value.trim()).filter(Boolean)));
+  validatePaidTrainingAssets({ baseModel, trainingDatasets }, paidAssets);
+
   return Object.freeze({
     id: idFactory(),
     ownerUid,
-    baseModel: input.baseModel?.trim() || "unknown",
-    trainingDatasets: Array.from(new Set((input.trainingDatasets ?? []).map((value) => value.trim()).filter(Boolean))),
+    baseModel,
+    trainingDatasets,
     trainingMethod: normalizeTrainingMethod(input.trainingMethod),
     evalReports: [],
     ollamaPullUrl: input.ollamaPullUrl?.trim() || null,
     huggingFaceUrl,
+    pointCost: normalizePointCost(input.pointCost, DEFAULT_MODEL_DOWNLOAD_POINT_COST),
     createdAt: now,
     updatedAt: now,
   });
+}
+
+function validatePaidTrainingAssets(
+  input: { baseModel: string; trainingDatasets: readonly string[] },
+  paidAssets?: PaidTrainingAssets,
+): void {
+  if (!paidAssets) return;
+
+  const paidDatasetIds = new Set(paidAssets.paidDatasetIds);
+  const unpaidDataset = input.trainingDatasets.find((id) => !paidDatasetIds.has(id));
+  if (unpaidDataset) {
+    throw new Error(`Training dataset must be paid before registration: ${unpaidDataset}`);
+  }
+
+  if (input.baseModel && input.baseModel !== "unknown") {
+    const paidModelNames = new Set(paidAssets.paidModelNames);
+    if (!paidModelNames.has(input.baseModel)) {
+      throw new Error(`Base model must be paid before registration: ${input.baseModel}`);
+    }
+  }
 }
 
 function normalizeTrainingMethod(method?: string): "lora" | "qlora" | "full" {

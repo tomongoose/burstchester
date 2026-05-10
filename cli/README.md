@@ -251,3 +251,31 @@ CLI 자체는 Node 20 내장 기능만 사용한다. 실제 학습은 `python3`�
 - `bitsandbytes` (`qlora` 사용 시)
 
 `train` 명령은 백엔드에서 ZIP을 받아 `dataset.jsonl`을 추출한 뒤, `transformers`의 `from_pretrained` 경로를 통해 Hugging Face에서 `--model-repo` 모델을 내려받고 `src/python/train.py`로 로컬 파인튜닝을 실행한다.
+
+### Google Colab 학습 + 모델 등록 스크립트
+
+Colab에서는 저장소를 클론한 뒤 환경변수만 채워 스크립트를 실행할 수 있다.
+
+```bash
+git clone https://github.com/tomongoose/burstchester.git
+cd burstchester
+
+export BURSTCHESTER_FIREBASE_ID_TOKEN="<firebase-id-token>"
+export HF_TOKEN="<huggingface-token>"
+export DATASET_IDS="dataset-1,dataset-2"
+export BASE_MODEL="google/gemma-2b-it"
+export TRAIN_COMMAND="train-gemma-2b-it-lora"
+export OUTPUT_MODEL_REPO="<hf-user-or-org>/<repo-name>"
+
+bash cli/scripts/colab-train-and-register.sh
+```
+
+주요 옵션:
+
+- `DATASET_IDS`: comma, space, newline 구분 dataset id 목록
+- `BASE_MODEL`: 학습에 사용할 Hugging Face base model repo
+- `TRAIN_COMMAND`: `train`, `train-gemma-2b-it-lora`, `train-gemma4-e2b-full`
+- `OUTPUT_MODEL_REPO`: 학습 결과를 업로드할 Hugging Face model repo
+- `OUTPUT_MODEL_URL`: 이미 업로드된 파일 URL을 등록할 때 사용
+- `MODEL_POINT_COST`: 등록할 모델 다운로드 가격 포인트
+- `SKIP_REGISTER=1`: 학습만 실행하고 백엔드 등록 생략

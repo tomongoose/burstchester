@@ -23,6 +23,7 @@ describe("buildUserProfile", () => {
     expect(profile.photoURL).toBe("https://example.com/avatar.png");
     expect(profile.uploadCount).toBe(0);
     expect(profile.downloadCount).toBe(0);
+    expect(profile.points).toBe(10_000);
     expect(profile.reputation).toBe(0);
     expect(typeof profile.createdAt.toMillis).toBe("function");
   });

@@ -1,11 +1,13 @@
 import { buildDatasetSummary, type DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { SearchFilter } from "@/lib/domain/search-filter";
+import { resolveFirebaseWebConfig } from "@/lib/firebase";
 import type { SortOrder } from "./build-query";
 import { getDatasetApiAuthToken } from "./auth-token";
 
 interface DatasetSearchOptions {
   readonly filter: SearchFilter;
   readonly sort: SortOrder;
+  readonly ownerUid?: string;
 }
 
 interface DatasetSummaryRecord {
@@ -149,6 +151,7 @@ function appendQuery(
   options: DatasetSearchOptions,
 ): void {
   if (options.filter.language) params.set("language", options.filter.language);
+  if (options.ownerUid) params.set("ownerUid", options.ownerUid);
   if (options.filter.task) params.set("task", options.filter.task);
   if (options.filter.baseModel) params.set("baseModel", options.filter.baseModel);
   if (options.filter.tags.length > 0) params.set("tags", options.filter.tags.join(","));
@@ -161,10 +164,11 @@ function resolveFirebaseProjectId(): string {
   if (explicit) return explicit;
 
   if (typeof window !== "undefined") {
-    return inferFirebaseProjectIdFromHostname(window.location.hostname);
+    const inferred = inferFirebaseProjectIdFromHostname(window.location.hostname);
+    if (inferred) return inferred;
   }
 
-  return "";
+  return resolveFirebaseWebConfig().projectId;
 }
 
 export function inferFirebaseProjectIdFromHostname(hostname: string): string {

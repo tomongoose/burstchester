@@ -5,23 +5,40 @@ import { onRequest } from "firebase-functions/v2/https";
 import type { DatasetRecord } from "../core/datasets";
 import { applyDownloadStats } from "../core/engagement";
 import { prepareDownloadCore } from "../core/packaging";
+import {
+  DEFAULT_DATASET_DOWNLOAD_POINT_COST,
+  INITIAL_USER_POINTS,
+  applyPointCharge,
+  calculateCreatorPayout,
+  normalizePointCost,
+  paidDatasetPath,
+  type PointChargeResult,
+} from "../core/purchases";
 import type { HandlerDeps } from "./deps";
-import { pathFromGsUrl, readDatasetId } from "./_request-helpers";
+import { verifyBearerAuth } from "./bearer-auth";
+import { pathFromGsUrl, readBearerToken, readDatasetId } from "./_request-helpers";
 
 type PrepareDownloadResult = Awaited<ReturnType<typeof prepareDownloadCore>>;
 
 export function createPrepareDatasetDownloadHandler(
-  deps: Pick<HandlerDeps, "db" | "storage" | "fieldValue">,
+  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "storage" | "fieldValue">,
 ) {
   return async function handlePrepareDatasetDownload(
-    request: Pick<Request, "query" | "body">,
+    request: Pick<Request, "method" | "headers" | "query" | "body">,
     response: Response,
     prepareDownloadRequest: (
       datasetId: string,
-    ) => Promise<PrepareDownloadResult> = (datasetId) =>
-      executePrepareDownload(deps, datasetId),
+      requesterUid: string,
+    ) => Promise<PrepareDownloadResult> = (datasetId, requesterUid) =>
+      executePrepareDownload(deps, datasetId, requesterUid),
+    verifyIdToken?: HandlerDeps["auth"]["verifyIdToken"],
   ): Promise<void> {
     applyCors(response);
+    if (request.method === "OPTIONS") {
+      response.status(204).send();
+      return;
+    }
+
     const datasetId = readDatasetId(request);
     if (!datasetId) {
       response.status(400).json({
@@ -31,8 +48,15 @@ export function createPrepareDatasetDownloadHandler(
       return;
     }
 
+    const bearerToken = readBearerToken(request);
+    if (!bearerToken) {
+      response.status(401).json({ ok: false, error: "Missing bearer token." });
+      return;
+    }
+
     try {
-      const result = await prepareDownloadRequest(datasetId);
+      const decoded = await (verifyIdToken ?? ((token) => verifyBearerAuth(deps, token)))(bearerToken);
+      const result = await prepareDownloadRequest(datasetId, decoded.uid);
       response.status(200).json({
         ok: true,
         datasetId,
@@ -52,7 +76,7 @@ export function createPrepareDatasetDownloadHandler(
 }
 
 export function createPrepareDatasetDownload(
-  deps: Pick<HandlerDeps, "db" | "storage" | "fieldValue">,
+  deps: Pick<HandlerDeps, "auth" | "database" | "db" | "storage" | "fieldValue">,
 ) {
   const handler = createPrepareDatasetDownloadHandler(deps);
   return onRequest({ region: "us-central1" }, (request, response) =>
@@ -61,13 +85,14 @@ export function createPrepareDatasetDownload(
 }
 
 export async function executePrepareDownload(
-  deps: Pick<HandlerDeps, "db" | "storage" | "fieldValue">,
+  deps: Pick<HandlerDeps, "database" | "db" | "storage" | "fieldValue">,
   datasetId: string,
   requesterUid?: string,
-): Promise<PrepareDownloadResult> {
+): Promise<PrepareDownloadResult & Partial<PointChargeResult>> {
   const now = new Date();
   const signedUrlExpiresAt = now.getTime() + 60 * 60 * 1000;
-  return prepareDownloadCore(
+  let pointCharge: PointChargeResult | undefined;
+  const result = await prepareDownloadCore(
     {
       datasetId,
       requesterUid,
@@ -107,6 +132,14 @@ export async function executePrepareDownload(
       },
       incrementDownloadStats: async (dataset) => {
         const result = applyDownloadStats(dataset);
+        if (requesterUid) {
+          pointCharge = await recordDatasetPurchaseIfNeeded(
+            deps,
+            requesterUid,
+            dataset,
+            now.getTime(),
+          );
+        }
         await deps.db.runTransaction(async (transaction) => {
           transaction.set(
             deps.db.doc(`datasets/${dataset.id}`),
@@ -130,6 +163,84 @@ export async function executePrepareDownload(
     },
     now,
   );
+
+  return {
+    ...result,
+    ...(pointCharge ?? {}),
+  };
+}
+
+export async function recordDatasetPurchaseIfNeeded(
+  deps: Pick<HandlerDeps, "database" | "db" | "fieldValue">,
+  uid: string,
+  dataset: Pick<DatasetRecord, "id" | "ownerUid" | "title" | "pointCost">,
+  purchasedAt: number,
+): Promise<PointChargeResult> {
+  const path = paidDatasetPath(uid, dataset.id);
+  const purchaseRef = deps.database.ref(path);
+  const existing = await purchaseRef.get();
+  if (existing.exists()) {
+    const value = existing.val() as Partial<PointChargeResult> | null;
+    return {
+      pointCost: 0,
+      remainingPoints: Number(value?.remainingPoints ?? 0),
+    };
+  }
+
+  const pointCost = normalizePointCost(
+    dataset.pointCost,
+    DEFAULT_DATASET_DOWNLOAD_POINT_COST,
+  );
+  const creatorPayoutPoints = calculateCreatorPayout(pointCost);
+  let chargeResult: PointChargeResult = {
+    pointCost,
+    remainingPoints: 0,
+  };
+  await deps.db.runTransaction(async (transaction) => {
+    const userRef = deps.db.doc(`users/${uid}`);
+    const snapshot = await transaction.get(userRef);
+    const currentPoints = Number(snapshot.data()?.points ?? INITIAL_USER_POINTS);
+    chargeResult = applyPointCharge(currentPoints, pointCost);
+    const buyerPointsAfterSettlement =
+      dataset.ownerUid === uid
+        ? chargeResult.remainingPoints + creatorPayoutPoints
+        : chargeResult.remainingPoints;
+    transaction.set(
+      userRef,
+      {
+        points: buyerPointsAfterSettlement,
+        updatedAt: deps.fieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    chargeResult = {
+      pointCost: chargeResult.pointCost,
+      remainingPoints: buyerPointsAfterSettlement,
+    };
+    if (dataset.ownerUid && dataset.ownerUid !== uid && creatorPayoutPoints > 0) {
+      transaction.set(
+        deps.db.doc(`users/${dataset.ownerUid}`),
+        {
+          points: deps.fieldValue.increment(creatorPayoutPoints),
+          updatedAt: deps.fieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+  });
+
+  await purchaseRef.set({
+    type: "dataset",
+    datasetId: dataset.id,
+    ownerUid: dataset.ownerUid,
+    title: dataset.title,
+    pointCost,
+    creatorPayoutPoints,
+    remainingPoints: chargeResult.remainingPoints,
+    purchasedAt,
+  });
+
+  return chargeResult;
 }
 
 function applyCors(response: Pick<Response, "setHeader">): void {

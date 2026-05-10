@@ -1,4 +1,5 @@
 import type { PrepareDownloadResponse } from "./download";
+import { getDatasetApiAuthToken } from "./auth-token";
 
 export async function requestPrepareDownloadHttp(
   datasetId: string,
@@ -7,9 +8,13 @@ export async function requestPrepareDownloadHttp(
 ): Promise<PrepareDownloadResponse> {
   const url = new URL(baseUrl);
   url.searchParams.set("datasetId", datasetId);
+  const idToken = await getDatasetApiAuthToken(fetchImpl);
 
   const response = await fetchImpl(url.toString(), {
     method: "GET",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
   });
 
   if (!response.ok) {

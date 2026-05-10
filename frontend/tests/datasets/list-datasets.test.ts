@@ -26,6 +26,7 @@ describe("fetchDatasetSummaries", () => {
         datasets: [
           {
             id: "dataset-1",
+            ownerUid: "user-1",
             ownerName: "Alice",
             title: "Legal Korean Set",
             description: "A".repeat(520),
@@ -54,7 +55,7 @@ describe("fetchDatasetSummaries", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("language=ko");
     expect(url).toContain("task=instruction");
     expect(url).toContain("baseModel=qwen3%3A14b");
@@ -70,8 +71,28 @@ describe("fetchDatasetSummaries", () => {
     expect(summaries[0].description.endsWith("…")).toBe(true);
   });
 
+  it("can request datasets scoped to a profile owner", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ ok: true, datasets: [] }),
+    }));
+
+    await fetchDatasetSummaries(
+      {
+        filter: SearchFilter.create({}),
+        sort: "newest",
+        ownerUid: "profile-owner",
+      },
+      fetchMock as never,
+      "https://example.com/listDatasets",
+    );
+
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("ownerUid=profile-owner");
+  });
+
   it("reuses an in-flight request for identical query params", async () => {
-    let resolveFetch: ((value: unknown) => void) | null = null;
+    let resolveFetch: (value: unknown) => void = () => {};
     const fetchMock = vi.fn(
       () =>
         new Promise((resolve) => {
@@ -98,7 +119,7 @@ describe("fetchDatasetSummaries", () => {
     await Promise.resolve();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    resolveFetch?.({
+    resolveFetch({
       ok: true,
       json: async () => ({ ok: true, datasets: [] }),
     });
@@ -188,6 +209,23 @@ describe("resolveDatasetBackendBaseUrl", () => {
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = originalProjectId;
     } else {
       delete process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    }
+  });
+
+  it("falls back to the bundled Firebase project id on localhost", () => {
+    const originalProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    delete process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { hostname: "localhost" },
+    });
+
+    expect(resolveDatasetBackendBaseUrl()).toBe(
+      "https://us-central1-bustchester-e08c3.cloudfunctions.net",
+    );
+
+    if (originalProjectId) {
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = originalProjectId;
     }
   });
 });
