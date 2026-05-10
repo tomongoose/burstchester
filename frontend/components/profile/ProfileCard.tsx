@@ -15,14 +15,10 @@ export interface ProfileCardData {
 
 interface ProfileCardProps {
   readonly profile: ProfileCardData;
-  readonly editable?: boolean;
-  readonly onEdit?: () => void;
 }
 
 export function ProfileCard({
   profile,
-  editable = false,
-  onEdit,
 }: ProfileCardProps): JSX.Element {
   return (
     <section className="rounded-lg border border-outline-variant/25 bg-surface-container-low p-lg">
@@ -59,16 +55,6 @@ export function ProfileCard({
               ) : null}
             </div>
           </div>
-          {editable ? (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="w-full rounded-lg bg-primary px-md py-2 font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-              disabled={!onEdit}
-            >
-              Edit profile
-            </button>
-          ) : null}
         </div>
 
         {profile.description ? (
