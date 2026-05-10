@@ -16,6 +16,7 @@ export interface UserProfile {
   readonly workplace: string;
   readonly uploadCount: number;
   readonly downloadCount: number;
+  readonly points: number;
   readonly reputation: number;
 }
 
@@ -51,7 +52,7 @@ export async function fetchMyProfile({
   if (!response.ok || !payload.ok || !payload.profile) {
     throw new Error(payload.error || `Profile request failed with status ${response.status}.`);
   }
-  return payload.profile;
+  return normalizeUserProfile(payload.profile);
 }
 
 export async function saveMyProfile({
@@ -80,7 +81,7 @@ export async function saveMyProfile({
   if (!response.ok || !payload.ok || !payload.profile) {
     throw new Error(payload.error || `Profile save failed with status ${response.status}.`);
   }
-  return payload.profile;
+  return normalizeUserProfile(payload.profile);
 }
 
 export async function uploadProfilePhoto({
@@ -103,4 +104,11 @@ export async function uploadProfilePhoto({
 
 export function resolveProfileUrl(): string {
   return `${resolveDatasetBackendBaseUrl()}/upsertCliProfile`;
+}
+
+function normalizeUserProfile(profile: UserProfile): UserProfile {
+  return {
+    ...profile,
+    points: Math.max(0, Number(profile.points ?? 0)),
+  };
 }

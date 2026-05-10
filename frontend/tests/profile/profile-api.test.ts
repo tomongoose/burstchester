@@ -11,6 +11,7 @@ const PROFILE = {
   workplace: "Acme",
   uploadCount: 1,
   downloadCount: 2,
+  points: 9000,
   reputation: 3,
 };
 

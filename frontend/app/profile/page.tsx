@@ -119,7 +119,7 @@ function ProfilePageContent() {
       ) : !profile || !currentUser ? (
         <SignedOutPrompt />
       ) : !isOwnProfile ? (
-        <div className="grid gap-gutter">
+        <div className="grid gap-lg">
           <ProfileHero profile={{ ...profile, email: "" }} />
           <ProfileAssetsShowcase
             datasets={profileDatasets}
@@ -134,8 +134,8 @@ function ProfilePageContent() {
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-gutter">
-          <div className="grid gap-gutter lg:grid-cols-[1fr_0.78fr]">
+        <div className="grid gap-lg">
+          <div className="grid gap-lg lg:grid-cols-[minmax(0,1fr)_360px]">
             <ProfileHero
               profile={profile}
               editable
@@ -182,70 +182,48 @@ function ProfileHero({
   readonly onEdit?: () => void;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(16,24,39,0.96),rgba(12,18,31,0.92))] p-lg shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(245,158,11,0.24),transparent_32%),radial-gradient(circle_at_86%_8%,rgba(45,212,191,0.2),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_45%)]" />
-      <div className="relative grid gap-lg xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-[1.5rem] border border-white/10 bg-black/20 p-sm backdrop-blur">
-          <ProfileCard profile={profile} editable={editable} onEdit={onEdit} />
+    <section className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow">
+      <div className="mb-lg flex flex-wrap items-center justify-between gap-md border-b border-outline-variant/25 pb-md">
+        <div>
+          <p className="font-label text-label uppercase tracking-widest text-primary">
+            Creator profile
+          </p>
+          <h1 className="mt-xs font-h2 text-h2 text-on-surface">
+            Profile
+          </h1>
         </div>
-        <div className="flex min-h-72 flex-col justify-between rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-xl">
-          <div>
-            <p className="font-label text-[11px] uppercase tracking-[0.26em] text-primary">
-              Creator profile
-            </p>
-            <h2 className="mt-sm max-w-xl font-h1 text-[clamp(2rem,5vw,4.5rem)] font-black leading-[0.9] text-on-surface">
-              {profile.displayName} builds reusable AI assets.
-            </h2>
-            <p className="mt-md max-w-2xl font-body text-body-lg text-on-surface-variant">
-              Explore the datasets and models this creator has published, then open the assets you need for CLI training or evaluation.
-            </p>
-          </div>
-          <dl className="mt-xl grid grid-cols-3 gap-sm">
-            <HeroMetric label="Uploads" value={profile.uploadCount} />
-            <HeroMetric label="Downloads" value={profile.downloadCount} />
-            <HeroMetric label="Reputation" value={profile.reputation} />
-          </dl>
-        </div>
+        {editable ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg bg-primary px-md py-2 font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!onEdit}
+          >
+            Edit profile
+          </button>
+        ) : null}
       </div>
+      <ProfileCard profile={profile} />
     </section>
-  );
-}
-
-function HeroMetric({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: number;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-background/70 p-md">
-      <dt className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
-        {label}
-      </dt>
-      <dd className="mt-xs font-h1 text-h2 font-black text-on-surface">
-        {value.toLocaleString()}
-      </dd>
-    </div>
   );
 }
 
 function ProfileEditHint({ onEdit }: { readonly onEdit: () => void }) {
   return (
-    <aside className="overflow-hidden rounded-[2rem] border border-outline-variant/30 bg-surface-container p-xl">
-      <p className="font-label text-[11px] uppercase tracking-[0.22em] text-primary">
+    <aside className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow">
+      <p className="font-label text-label uppercase tracking-widest text-primary">
         Own profile
       </p>
       <h2 className="mt-xs font-h2 text-h2 text-on-surface">
-        Your profile is editable
+        Edit your details
       </h2>
       <p className="mt-md font-body text-body-md text-on-surface-variant">
-        Use the edit button to update your nickname, workplace, bio, and profile photo.
+        Update your nickname, workplace, bio, and profile photo.
       </p>
       <button
         type="button"
         onClick={onEdit}
-        className="mt-lg rounded-xl bg-primary px-lg py-3 font-body text-body-md font-bold text-on-primary transition-opacity hover:opacity-90"
+        className="mt-lg rounded-lg bg-primary px-md py-2 font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90"
       >
         Edit profile
       </button>
@@ -265,13 +243,13 @@ function ProfileAssetsShowcase({
   readonly error: string;
 }) {
   return (
-    <section className="rounded-[2rem] border border-outline-variant/30 bg-surface-container p-lg">
+    <section className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow">
       <div className="flex flex-wrap items-end justify-between gap-md">
         <div>
-          <p className="font-label text-[11px] uppercase tracking-[0.26em] text-primary">
+          <p className="font-label text-label uppercase tracking-widest text-primary">
             Published assets
           </p>
-          <h2 className="mt-xs font-h2 text-h1 text-on-surface">
+          <h2 className="mt-xs font-h2 text-h2 text-on-surface">
             Datasets and models
           </h2>
         </div>
@@ -312,8 +290,8 @@ function AssetColumn({
   const items = Array.isArray(children) ? children.filter(Boolean) : children;
   const isEmpty = Array.isArray(items) ? items.length === 0 : !items;
   return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-background/50 p-md">
-      <h3 className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+    <div className="rounded-lg border border-outline-variant/25 bg-background/45 p-md">
+      <h3 className="font-label text-label uppercase tracking-widest text-on-surface-variant">
         {title}
       </h3>
       <div className="mt-md grid gap-sm">
@@ -333,18 +311,18 @@ function DatasetAssetCard({ dataset }: { readonly dataset: DatasetSummary }) {
   return (
     <Link
       href={buildDatasetDetailHref(dataset.id)}
-      className="group rounded-2xl border border-outline-variant/20 bg-surface-container-low p-lg transition-colors hover:border-primary/40"
+      className="group rounded-lg border border-outline-variant/20 bg-surface-container-low p-md transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-md">
-        <div>
-          <h4 className="font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
+        <div className="min-w-0">
+          <h4 className="break-words font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
             {dataset.title}
           </h4>
           <p className="mt-xs line-clamp-2 font-body text-body-sm text-on-surface-variant">
             {dataset.description || "No description provided."}
           </p>
         </div>
-        <span className="rounded-full border border-primary/20 px-3 py-1 font-label text-[10px] uppercase tracking-[0.2em] text-primary">
+        <span className="shrink-0 rounded-full border border-primary/20 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-primary">
           {dataset.size.category}
         </span>
       </div>
@@ -352,7 +330,7 @@ function DatasetAssetCard({ dataset }: { readonly dataset: DatasetSummary }) {
         {dataset.tags.slice(0, 3).map((tag) => (
           <span
             key={tag}
-            className="rounded-full bg-primary/10 px-3 py-1 font-label text-[10px] uppercase tracking-[0.18em] text-primary"
+            className="rounded-full bg-primary/10 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-primary"
           >
             {tag}
           </span>
@@ -368,10 +346,10 @@ function ModelAssetCard({ model }: { readonly model: ModelSummary }) {
       href={model.huggingFaceUrl}
       target="_blank"
       rel="noreferrer"
-      className="group rounded-2xl border border-outline-variant/20 bg-surface-container-low p-lg transition-colors hover:border-primary/40"
+      className="group rounded-lg border border-outline-variant/20 bg-surface-container-low p-md transition-colors hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-md">
-        <div>
+        <div className="min-w-0">
           <h4 className="break-words font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
             {model.id}
           </h4>
@@ -379,7 +357,7 @@ function ModelAssetCard({ model }: { readonly model: ModelSummary }) {
             Base: {model.baseModel}
           </p>
         </div>
-        <span className="rounded-full border border-tertiary/25 px-3 py-1 font-label text-[10px] uppercase tracking-[0.2em] text-tertiary">
+        <span className="shrink-0 rounded-full border border-tertiary/25 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-tertiary">
           {model.trainingMethod}
         </span>
       </div>
@@ -396,7 +374,7 @@ function ProfilePageShell({ children }: { readonly children: ReactNode }) {
     <>
       <SiteNav active="profile" />
       <main className="flex-1 pt-16">
-        <div className="mx-auto max-w-container-max px-gutter py-xl">
+        <div className="mx-auto w-full max-w-6xl px-gutter py-lg md:py-xl">
           {children}
         </div>
       </main>
@@ -419,6 +397,7 @@ function toProfileCardData(
     workplace: profile.workplace,
     uploadCount: profile.uploadCount,
     downloadCount: profile.downloadCount,
+    points: profile.points,
     reputation: profile.reputation,
   };
 }
@@ -433,6 +412,7 @@ function toUserProfile(profile: ProfileCardData): UserProfile {
     workplace: profile.workplace,
     uploadCount: profile.uploadCount,
     downloadCount: profile.downloadCount,
+    points: profile.points,
     reputation: profile.reputation,
   };
 }

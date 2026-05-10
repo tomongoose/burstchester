@@ -9,6 +9,7 @@ import {
   DEFAULT_DATASET_DOWNLOAD_POINT_COST,
   INITIAL_USER_POINTS,
   applyPointCharge,
+  calculateCreatorPayout,
   normalizePointCost,
   paidDatasetPath,
   type PointChargeResult,
@@ -23,7 +24,7 @@ export function createPrepareDatasetDownloadHandler(
   deps: Pick<HandlerDeps, "auth" | "database" | "db" | "storage" | "fieldValue">,
 ) {
   return async function handlePrepareDatasetDownload(
-    request: Pick<Request, "headers" | "query" | "body">,
+    request: Pick<Request, "method" | "headers" | "query" | "body">,
     response: Response,
     prepareDownloadRequest: (
       datasetId: string,
@@ -33,6 +34,11 @@ export function createPrepareDatasetDownloadHandler(
     verifyIdToken?: HandlerDeps["auth"]["verifyIdToken"],
   ): Promise<void> {
     applyCors(response);
+    if (request.method === "OPTIONS") {
+      response.status(204).send();
+      return;
+    }
+
     const datasetId = readDatasetId(request);
     if (!datasetId) {
       response.status(400).json({
@@ -164,10 +170,10 @@ export async function executePrepareDownload(
   };
 }
 
-async function recordDatasetPurchaseIfNeeded(
+export async function recordDatasetPurchaseIfNeeded(
   deps: Pick<HandlerDeps, "database" | "db" | "fieldValue">,
   uid: string,
-  dataset: Pick<DatasetRecord, "id" | "title" | "pointCost">,
+  dataset: Pick<DatasetRecord, "id" | "ownerUid" | "title" | "pointCost">,
   purchasedAt: number,
 ): Promise<PointChargeResult> {
   const path = paidDatasetPath(uid, dataset.id);
@@ -185,6 +191,7 @@ async function recordDatasetPurchaseIfNeeded(
     dataset.pointCost,
     DEFAULT_DATASET_DOWNLOAD_POINT_COST,
   );
+  const creatorPayoutPoints = calculateCreatorPayout(pointCost);
   let chargeResult: PointChargeResult = {
     pointCost,
     remainingPoints: 0,
@@ -194,21 +201,41 @@ async function recordDatasetPurchaseIfNeeded(
     const snapshot = await transaction.get(userRef);
     const currentPoints = Number(snapshot.data()?.points ?? INITIAL_USER_POINTS);
     chargeResult = applyPointCharge(currentPoints, pointCost);
+    const buyerPointsAfterSettlement =
+      dataset.ownerUid === uid
+        ? chargeResult.remainingPoints + creatorPayoutPoints
+        : chargeResult.remainingPoints;
     transaction.set(
       userRef,
       {
-        points: chargeResult.remainingPoints,
+        points: buyerPointsAfterSettlement,
         updatedAt: deps.fieldValue.serverTimestamp(),
       },
       { merge: true },
     );
+    chargeResult = {
+      pointCost: chargeResult.pointCost,
+      remainingPoints: buyerPointsAfterSettlement,
+    };
+    if (dataset.ownerUid && dataset.ownerUid !== uid && creatorPayoutPoints > 0) {
+      transaction.set(
+        deps.db.doc(`users/${dataset.ownerUid}`),
+        {
+          points: deps.fieldValue.increment(creatorPayoutPoints),
+          updatedAt: deps.fieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
   });
 
   await purchaseRef.set({
     type: "dataset",
     datasetId: dataset.id,
+    ownerUid: dataset.ownerUid,
     title: dataset.title,
     pointCost,
+    creatorPayoutPoints,
     remainingPoints: chargeResult.remainingPoints,
     purchasedAt,
   });

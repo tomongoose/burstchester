@@ -44,7 +44,7 @@ describe("AuthNavAction", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the profile nickname to the right of logout and links to the profile", async () => {
+  it("shows the profile nickname and point balance before logout", async () => {
     const fetchProfile = vi.fn(async () => ({
       uid: "user-1",
       displayName: "Alice",
@@ -54,6 +54,7 @@ describe("AuthNavAction", () => {
       workplace: "",
       uploadCount: 0,
       downloadCount: 0,
+      points: 12345,
       reputation: 0,
     }));
 
@@ -72,9 +73,13 @@ describe("AuthNavAction", () => {
       "href",
       "/profile?user=user-1",
     );
+    expect(screen.getByRole("link", { name: /12,345 pts/i })).toHaveAttribute(
+      "href",
+      "/points",
+    );
     expect(screen.getByRole("button", { name: /logout/i }).compareDocumentPosition(
       screen.getByRole("link", { name: "Alice" }),
-    )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    )).toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 
   it("shows logout when a cached non-anonymous session validates", async () => {

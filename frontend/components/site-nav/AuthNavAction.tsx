@@ -24,6 +24,7 @@ export function AuthNavAction({
   const [loadedProfileName, setLoadedProfileName] = useState<{
     readonly uid: string;
     readonly name: string;
+    readonly points: number;
   } | null>(null);
   const controlled = currentUser !== undefined;
   const displayedUser = controlled ? currentUser : observedUser;
@@ -32,6 +33,10 @@ export function AuthNavAction({
     displayedUser && loadedProfileName?.uid === displayedUser.uid
       ? loadedProfileName.name
       : fallbackName;
+  const profilePoints =
+    displayedUser && loadedProfileName?.uid === displayedUser.uid
+      ? loadedProfileName.points
+      : 0;
 
   useEffect(() => {
     if (controlled) return;
@@ -69,6 +74,7 @@ export function AuthNavAction({
           setLoadedProfileName({
             uid: displayedUser.uid,
             name: profile.displayName || fallbackName,
+            points: profile.points,
           });
         }
       })
@@ -103,7 +109,22 @@ export function AuthNavAction({
   }
 
   return (
-    <div className="flex items-center gap-sm">
+    <div className="flex min-w-0 items-center gap-sm">
+      <Link
+        href={buildProfileHref(displayedUser.uid)}
+        className="hidden max-w-36 truncate rounded-md border border-outline-variant/30 px-3 py-2 font-label text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary sm:inline-flex"
+        title={profileName || displayedUser.uid}
+      >
+        {profileName || displayedUser.uid}
+      </Link>
+      <Link
+        href="/points"
+        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-3 py-2 font-label text-[11px] uppercase tracking-[0.16em] text-primary transition-colors hover:border-primary/50 hover:bg-primary/15"
+        title="Point policy"
+      >
+        <span className="material-symbols-outlined text-sm">toll</span>
+        {profilePoints.toLocaleString()} pts
+      </Link>
       <button
         type="button"
         onClick={() => {
@@ -113,13 +134,6 @@ export function AuthNavAction({
       >
         Logout
       </button>
-      <Link
-        href={buildProfileHref(displayedUser.uid)}
-        className="max-w-36 truncate rounded-md border border-outline-variant/30 px-3 py-2 font-label text-[11px] uppercase tracking-[0.18em] text-on-surface-variant transition-colors hover:border-primary/40 hover:text-primary"
-        title={profileName || displayedUser.uid}
-      >
-        {profileName || displayedUser.uid}
-      </Link>
     </div>
   );
 }

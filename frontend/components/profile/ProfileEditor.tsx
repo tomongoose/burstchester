@@ -70,10 +70,10 @@ export function ProfileEditor({
       onSubmit={(event) => {
         void handleSubmit(event);
       }}
-      className="rounded-xl border border-outline-variant/30 bg-surface-container p-xl"
+      className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow"
     >
       <div>
-        <p className="font-label text-[11px] uppercase tracking-[0.22em] text-primary">
+        <p className="font-label text-label uppercase tracking-widest text-primary">
           Profile settings
         </p>
         <h2 className="mt-xs font-h2 text-h2 text-on-surface">Edit your profile</h2>
@@ -81,30 +81,30 @@ export function ProfileEditor({
 
       <div className="mt-lg grid gap-md">
         <label className="block">
-          <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+          <span className="font-label text-label uppercase tracking-widest text-on-surface-variant">
             Display name
           </span>
           <input
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
-            className="mt-sm w-full rounded-xl border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
+            className="mt-sm w-full rounded-lg border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
           />
         </label>
 
         <label className="block">
-          <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+          <span className="font-label text-label uppercase tracking-widest text-on-surface-variant">
             Workplace
           </span>
           <input
             value={workplace}
             onChange={(event) => setWorkplace(event.target.value)}
             placeholder="Acme AI, Research Lab, Independent"
-            className="mt-sm w-full rounded-xl border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
+            className="mt-sm w-full rounded-lg border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
           />
         </label>
 
         <label className="block">
-          <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+          <span className="font-label text-label uppercase tracking-widest text-on-surface-variant">
             About
           </span>
           <textarea
@@ -112,12 +112,12 @@ export function ProfileEditor({
             onChange={(event) => setDescription(event.target.value)}
             rows={4}
             placeholder="Describe your datasets, model work, or background."
-            className="mt-sm w-full rounded-xl border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
+            className="mt-sm w-full rounded-lg border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
           />
         </label>
 
         <label className="block">
-          <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+          <span className="font-label text-label uppercase tracking-widest text-on-surface-variant">
             Profile photo
           </span>
           <input
@@ -126,7 +126,7 @@ export function ProfileEditor({
             onChange={(event) => {
               void handlePhotoChange(event);
             }}
-            className="mt-sm block w-full font-body text-body-sm text-on-surface-variant file:mr-md file:rounded-lg file:border-0 file:bg-primary file:px-md file:py-2 file:font-label file:text-[11px] file:uppercase file:tracking-[0.2em] file:text-on-primary"
+            className="mt-sm block w-full font-body text-body-sm text-on-surface-variant file:mr-md file:rounded-lg file:border-0 file:bg-primary file:px-md file:py-2 file:font-label file:text-label file:uppercase file:tracking-widest file:text-on-primary"
           />
           {photoURL ? (
             <p className="mt-xs break-all font-body text-body-sm text-on-surface-variant">
@@ -145,7 +145,7 @@ export function ProfileEditor({
       <button
         type="submit"
         disabled={saving}
-        className="mt-lg rounded-xl bg-primary px-lg py-3 font-body text-body-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-lg rounded-lg bg-primary px-md py-2 font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saving ? "Saving..." : "Save profile"}
       </button>

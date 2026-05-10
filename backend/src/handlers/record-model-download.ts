@@ -6,6 +6,7 @@ import {
   DEFAULT_MODEL_DOWNLOAD_POINT_COST,
   INITIAL_USER_POINTS,
   applyPointCharge,
+  calculateCreatorPayout,
   normalizePointCost,
   paidModelPath,
   type PointChargeResult,
@@ -73,7 +74,7 @@ export function createRecordModelDownload(
   return onRequest({ region: "us-central1" }, handler);
 }
 
-async function recordModelDownload(
+export async function recordModelDownload(
   deps: Pick<HandlerDeps, "database" | "db" | "fieldValue">,
   input: { uid: string; modelName: string; sourceUrl: string },
 ): Promise<PointChargeResult> {
@@ -89,10 +90,15 @@ async function recordModelDownload(
   }
 
   const modelSnapshot = await deps.db.doc(`models/${input.modelName}`).get();
+  const model = modelSnapshot.exists
+    ? (modelSnapshot.data() as { pointCost?: unknown; ownerUid?: unknown })
+    : null;
   const pointCost = normalizePointCost(
-    modelSnapshot.exists ? modelSnapshot.data()?.pointCost : undefined,
+    model?.pointCost,
     DEFAULT_MODEL_DOWNLOAD_POINT_COST,
   );
+  const ownerUid = typeof model?.ownerUid === "string" ? model.ownerUid.trim() : "";
+  const creatorPayoutPoints = calculateCreatorPayout(pointCost);
   let chargeResult: PointChargeResult = {
     pointCost,
     remainingPoints: 0,
@@ -102,21 +108,41 @@ async function recordModelDownload(
     const snapshot = await transaction.get(userRef);
     const currentPoints = Number(snapshot.data()?.points ?? INITIAL_USER_POINTS);
     chargeResult = applyPointCharge(currentPoints, pointCost);
+    const buyerPointsAfterSettlement =
+      ownerUid === input.uid
+        ? chargeResult.remainingPoints + creatorPayoutPoints
+        : chargeResult.remainingPoints;
     transaction.set(
       userRef,
       {
-        points: chargeResult.remainingPoints,
+        points: buyerPointsAfterSettlement,
         updatedAt: deps.fieldValue.serverTimestamp(),
       },
       { merge: true },
     );
+    chargeResult = {
+      pointCost: chargeResult.pointCost,
+      remainingPoints: buyerPointsAfterSettlement,
+    };
+    if (ownerUid && ownerUid !== input.uid && creatorPayoutPoints > 0) {
+      transaction.set(
+        deps.db.doc(`users/${ownerUid}`),
+        {
+          points: deps.fieldValue.increment(creatorPayoutPoints),
+          updatedAt: deps.fieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
   });
 
   await purchaseRef.set({
     type: "model",
     modelName: input.modelName,
     sourceUrl: input.sourceUrl,
+    ownerUid,
     pointCost,
+    creatorPayoutPoints,
     remainingPoints: chargeResult.remainingPoints,
     purchasedAt: Date.now(),
   });

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthNavAction } from "./AuthNavAction";
 
 interface SiteNavProps {
-  readonly active?: "datasets" | "profile" | "tokens" | null;
+  readonly active?: "datasets" | "profile" | "tokens" | "points" | null;
 }
 
 export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
@@ -39,6 +39,16 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
               }`}
             >
               Tokens
+            </Link>
+            <Link
+              href="/points"
+              className={`border-b pb-1 font-label text-[11px] uppercase tracking-[0.22em] transition-colors ${
+                active === "points"
+                  ? "border-primary-container text-primary-container"
+                  : "border-transparent text-on-surface-variant hover:text-primary"
+              }`}
+            >
+              Points
             </Link>
             <a
               href="https://github.com/tomato-data/burstchester"

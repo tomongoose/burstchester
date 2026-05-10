@@ -3,6 +3,7 @@ import { logger } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 
 import { buildUserProfile } from "../core/profiles";
+import { INITIAL_USER_POINTS } from "../core/purchases";
 import type { HandlerDeps } from "./deps";
 import {
   readBearerToken,
@@ -19,6 +20,7 @@ export interface CliProfileRecord {
   readonly workplace: string;
   readonly uploadCount: number;
   readonly downloadCount: number;
+  readonly points: number;
   readonly reputation: number;
 }
 
@@ -178,6 +180,7 @@ export async function upsertCliProfileRecord(
       workplace: created.workplace,
       uploadCount: created.uploadCount,
       downloadCount: created.downloadCount,
+      points: created.points,
       reputation: created.reputation,
     };
   }
@@ -196,6 +199,7 @@ export async function upsertCliProfileRecord(
     workplace,
     uploadCount: Number(existing?.uploadCount ?? 0),
     downloadCount: Number(existing?.downloadCount ?? 0),
+    points: Number(existing?.points ?? INITIAL_USER_POINTS),
     reputation: Number(existing?.reputation ?? 0),
   };
 }
@@ -240,6 +244,7 @@ export async function getOrCreateCliProfileRecord(
     workplace: (existing.workplace ?? "").trim(),
     uploadCount: Number(existing.uploadCount ?? 0),
     downloadCount: Number(existing.downloadCount ?? 0),
+    points: Number(existing.points ?? INITIAL_USER_POINTS),
     reputation: Number(existing.reputation ?? 0),
   };
 }

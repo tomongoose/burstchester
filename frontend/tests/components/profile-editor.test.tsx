@@ -13,6 +13,7 @@ const PROFILE = {
   workplace: "",
   uploadCount: 0,
   downloadCount: 0,
+  points: 0,
   reputation: 0,
 };
 

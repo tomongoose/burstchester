@@ -12,6 +12,7 @@ const ALICE = {
   workplace: "Acme AI",
   uploadCount: 3,
   downloadCount: 12,
+  points: 9000,
   reputation: 27,
 };
 

@@ -109,6 +109,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: workplace ?? "",
         uploadCount: 0,
         downloadCount: 0,
+        points: 10_000,
         reputation: 0,
       }),
       getProfile: async () => {
@@ -143,6 +144,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: "Burst Labs",
         uploadCount: 0,
         downloadCount: 0,
+        points: 10_000,
         reputation: 0,
       },
     });
@@ -169,6 +171,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: "Acme",
         uploadCount: 2,
         downloadCount: 3,
+        points: 9_750,
         reputation: 4,
       }),
     });
@@ -195,6 +198,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: "Acme",
         uploadCount: 2,
         downloadCount: 3,
+        points: 9_750,
         reputation: 4,
       },
     });
@@ -216,6 +220,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: "Acme",
         uploadCount: 2,
         downloadCount: 3,
+        points: 9_750,
         reputation: 4,
       }),
     });
@@ -242,6 +247,7 @@ describe("upsertCliProfileHandler", () => {
         workplace: "Acme",
         uploadCount: 2,
         downloadCount: 3,
+        points: 9_750,
         reputation: 4,
       },
     });

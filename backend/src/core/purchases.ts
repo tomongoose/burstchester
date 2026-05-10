@@ -1,6 +1,7 @@
 export const INITIAL_USER_POINTS = 10_000;
 export const DEFAULT_DATASET_DOWNLOAD_POINT_COST = 10;
 export const DEFAULT_MODEL_DOWNLOAD_POINT_COST = 100;
+export const CREATOR_PAYOUT_RATE = 0.7;
 
 export interface PointChargeResult {
   readonly pointCost: number;
@@ -27,6 +28,11 @@ export function applyPointCharge(
     pointCost,
     remainingPoints: currentPoints - pointCost,
   });
+}
+
+export function calculateCreatorPayout(pointCost: number): number {
+  if (!Number.isFinite(pointCost) || pointCost <= 0) return 0;
+  return Math.floor(pointCost * CREATOR_PAYOUT_RATE);
 }
 
 export function encodePurchaseKey(value: string): string {
