@@ -1,30 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { AccessTokenIssuer } from "@/components/access-token/AccessTokenIssuer";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SiteNav } from "@/components/site-nav/SiteNav";
-import { getFirebaseAuth } from "@/lib/firebase";
 
 export default function AccessTokenPage() {
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
+  const { status, user } = useAuth();
+  const loading = status === "loading";
 
   return (
     <>
       <SiteNav active="tokens" />
       <main className="flex-1 pt-16">
         <div className="mx-auto max-w-container-max px-gutter py-xl">
-          {loading ? <AccessTokenSkeleton /> : <AccessTokenIssuer currentUser={currentUser} />}
+          {loading ? <AccessTokenSkeleton /> : <AccessTokenIssuer currentUser={user} />}
         </div>
       </main>
       <SiteFooter />

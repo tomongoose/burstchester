@@ -1,12 +1,9 @@
 import Link from "next/link";
-import { GoogleRedirectHandler } from "@/components/auth/GoogleRedirectHandler";
-import { LoginButton } from "@/components/auth/LoginButton";
-import { LoginSessionPanel } from "@/components/auth/LoginSessionPanel";
+import { LoginCardBody } from "@/components/auth/LoginCardBody";
 
 export default function LoginPage() {
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden">
-      <GoogleRedirectHandler />
       <div className="absolute inset-0 kinetic-glow pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-[420px] px-md">
@@ -31,8 +28,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <LoginButton />
-          <LoginSessionPanel />
+          <LoginCardBody />
 
           <p className="mt-lg font-body text-body-md text-on-surface-variant">
             By continuing, you agree to the{" "}

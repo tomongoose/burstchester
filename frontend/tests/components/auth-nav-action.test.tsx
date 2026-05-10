@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { User as FirebaseUser } from "firebase/auth";
 
 import { AuthNavAction } from "@/components/site-nav/AuthNavAction";
-
-const onAuthStateChangedMock = vi.fn();
-
-vi.mock("firebase/auth", () => ({
-  onAuthStateChanged: (...args: unknown[]) => onAuthStateChangedMock(...args),
-}));
+import { TestAuthProvider } from "../auth/test-auth-provider";
 
 vi.mock("@/lib/firebase", () => ({
   getFirebaseAuth: () => ({ name: "fake-auth" }),
@@ -16,7 +12,6 @@ vi.mock("@/lib/firebase", () => ({
 
 describe("AuthNavAction", () => {
   beforeEach(() => {
-    onAuthStateChangedMock.mockReset();
     window.localStorage.clear();
   });
 
@@ -92,7 +87,22 @@ describe("AuthNavAction", () => {
     )).toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 
-  it("shows the profile nickname for a cached non-anonymous session", async () => {
+  it("shows logout when an authed session is provided through context", () => {
+    const fakeUser = {
+      uid: "ctx-user",
+      displayName: "Ctx User",
+    } as FirebaseUser;
+
+    render(
+      <TestAuthProvider status="authed" user={fakeUser}>
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+  });
+
+  it("shows the profile nickname for an authed session with a token", async () => {
     const fetchProfile = vi.fn(async () => ({
       uid: "cached-user",
       displayName: "Cached Alice",
@@ -105,17 +115,17 @@ describe("AuthNavAction", () => {
       points: 10000,
       reputation: 0,
     }));
+    const fakeUser = {
+      uid: "cached-user",
+      displayName: "Fallback",
+      getIdToken: vi.fn(async () => "cached-id-token"),
+    } as unknown as FirebaseUser;
 
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "cached-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => "cached-id-token"),
-      });
-      return () => {};
-    });
-
-    render(<AuthNavAction fetchProfile={fetchProfile} />);
+    render(
+      <TestAuthProvider status="authed" user={fakeUser}>
+        <AuthNavAction fetchProfile={fetchProfile} />
+      </TestAuthProvider>,
+    );
 
     expect(await screen.findByRole("button", { name: /logout/i })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Cached Alice" })).toHaveAttribute(
@@ -124,20 +134,27 @@ describe("AuthNavAction", () => {
     );
   });
 
-  it("keeps sign in when cached token validation fails", async () => {
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "expired-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => {
-          throw new Error("expired");
-        }),
-      });
-      return () => {};
-    });
+  it("renders the cached snapshot optimistically while status is loading", () => {
+    render(
+      <TestAuthProvider
+        status="loading"
+        cachedSnapshot={{ uid: "cached-user", displayName: "Cached", photoURL: "" }}
+      >
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
 
-    render(<AuthNavAction />);
+    expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /cached/i })).toBeInTheDocument();
+  });
 
-    expect(await screen.findByRole("link", { name: /sign in/i })).toBeInTheDocument();
+  it("keeps sign in when context reports guest status", () => {
+    render(
+      <TestAuthProvider status="guest">
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
   });
 });

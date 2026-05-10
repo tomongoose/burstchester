@@ -1,82 +1,61 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { User as FirebaseUser } from "firebase/auth";
 
 import { LoginSessionPanel } from "@/components/auth/LoginSessionPanel";
-
-const onAuthStateChangedMock = vi.fn();
-
-vi.mock("firebase/auth", () => ({
-  onAuthStateChanged: (...args: unknown[]) => onAuthStateChangedMock(...args),
-}));
-
-vi.mock("@/lib/firebase", () => ({
-  getFirebaseAuth: () => ({ name: "fake-auth" }),
-}));
+import { TestAuthProvider } from "./test-auth-provider";
 
 describe("LoginSessionPanel", () => {
-  beforeEach(() => {
-    onAuthStateChangedMock.mockReset();
-  });
-
-  it("shows an authenticated screen and schedules home navigation after token validation", async () => {
+  it("shows an authenticated screen and schedules home navigation when status is authed", async () => {
     const navigateHome = vi.fn();
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "google-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => "oauth-id-token"),
-      });
-      return () => {};
-    });
+    const user = { uid: "google-user" } as FirebaseUser;
 
-    render(<LoginSessionPanel navigateHome={navigateHome} redirectDelayMs={0} />);
+    render(
+      <TestAuthProvider status="authed" user={user}>
+        <LoginSessionPanel navigateHome={navigateHome} redirectDelayMs={0} />
+      </TestAuthProvider>,
+    );
 
-    expect(await screen.findByText(/you're signed in/i)).toBeInTheDocument();
+    expect(screen.getByText(/you're signed in/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
     await waitFor(() => {
       expect(navigateHome).toHaveBeenCalledWith("/");
     });
   });
 
-  it("does not show the authenticated screen for anonymous cached sessions", async () => {
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "anon-user",
-        isAnonymous: true,
-        getIdToken: vi.fn(async () => "anonymous-token"),
-      });
-      return () => {};
-    });
+  it("does not show the authenticated screen while status is loading", () => {
+    render(
+      <TestAuthProvider status="loading">
+        <LoginSessionPanel />
+      </TestAuthProvider>,
+    );
 
-    render(<LoginSessionPanel />);
+    expect(screen.queryByText(/you're signed in/i)).not.toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(onAuthStateChangedMock).toHaveBeenCalled();
-    });
+  it("does not show the authenticated screen for guest sessions", () => {
+    render(
+      <TestAuthProvider status="guest">
+        <LoginSessionPanel />
+      </TestAuthProvider>,
+    );
+
     expect(screen.queryByText(/you're signed in/i)).not.toBeInTheDocument();
   });
 
   it("logs out from the authenticated screen", async () => {
     const user = userEvent.setup();
     const signOut = vi.fn(async () => {});
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "google-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => "oauth-id-token"),
-      });
-      return () => {};
-    });
+    const fakeFirebaseUser = { uid: "google-user" } as FirebaseUser;
 
     render(
-      <LoginSessionPanel
-        redirectDelayMs={10_000}
-        signOut={signOut}
-      />,
+      <TestAuthProvider status="authed" user={fakeFirebaseUser}>
+        <LoginSessionPanel redirectDelayMs={10_000} signOut={signOut} />
+      </TestAuthProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: /logout/i }));
+    await user.click(screen.getByRole("button", { name: /logout/i }));
 
     expect(signOut).toHaveBeenCalledTimes(1);
   });
