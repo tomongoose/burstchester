@@ -1,24 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { User as FirebaseUser } from "firebase/auth";
 
 import { AuthNavAction } from "@/components/site-nav/AuthNavAction";
-
-const onAuthStateChangedMock = vi.fn();
-
-vi.mock("firebase/auth", () => ({
-  onAuthStateChanged: (...args: unknown[]) => onAuthStateChangedMock(...args),
-}));
+import { TestAuthProvider } from "../auth/test-auth-provider";
 
 vi.mock("@/lib/firebase", () => ({
   getFirebaseAuth: () => ({ name: "fake-auth" }),
 }));
 
 describe("AuthNavAction", () => {
-  beforeEach(() => {
-    onAuthStateChangedMock.mockReset();
-  });
-
   it("links to sign in while signed out", () => {
     render(<AuthNavAction currentUser={null} />);
 
@@ -82,35 +74,42 @@ describe("AuthNavAction", () => {
     )).toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 
-  it("shows logout when a cached non-anonymous session validates", async () => {
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "cached-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => "cached-id-token"),
-      });
-      return () => {};
-    });
+  it("shows logout when an authed session is provided through context", () => {
+    const fakeUser = {
+      uid: "ctx-user",
+      displayName: "Ctx User",
+    } as FirebaseUser;
 
-    render(<AuthNavAction />);
+    render(
+      <TestAuthProvider status="authed" user={fakeUser}>
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
 
-    expect(await screen.findByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
   });
 
-  it("keeps sign in when cached token validation fails", async () => {
-    onAuthStateChangedMock.mockImplementation((_auth, callback) => {
-      callback({
-        uid: "expired-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => {
-          throw new Error("expired");
-        }),
-      });
-      return () => {};
-    });
+  it("renders the cached snapshot optimistically while status is loading", () => {
+    render(
+      <TestAuthProvider
+        status="loading"
+        cachedSnapshot={{ uid: "cached-user", displayName: "Cached", photoURL: "" }}
+      >
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
 
-    render(<AuthNavAction />);
+    expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /cached/i })).toBeInTheDocument();
+  });
 
-    expect(await screen.findByRole("link", { name: /sign in/i })).toBeInTheDocument();
+  it("keeps sign in when context reports guest status", () => {
+    render(
+      <TestAuthProvider status="guest">
+        <AuthNavAction />
+      </TestAuthProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
   });
 });

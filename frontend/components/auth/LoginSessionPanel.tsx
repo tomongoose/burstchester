@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { useEffect, type JSX } from "react";
 import { getDefaultAuthService } from "@/lib/auth";
-import { validateRestoredLoginUser } from "@/lib/auth/restored-session";
-import { getFirebaseAuth } from "@/lib/firebase";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 interface LoginSessionPanelProps {
   readonly navigateHome?: (href: string) => void;
@@ -19,36 +17,18 @@ export function LoginSessionPanel({
   redirectDelayMs = 700,
   signOut,
 }: LoginSessionPanelProps = {}): JSX.Element | null {
-  const [validatedUid, setValidatedUid] = useState<string | null>(null);
+  const { status } = useAuth();
+  const isAuthed = status === "authed";
 
   useEffect(() => {
-    let active = true;
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
-      void validateRestoredLoginUser(user)
-        .then((validatedUser) => {
-          if (!active || !validatedUser) return;
-          setValidatedUid(validatedUser.uid);
-        })
-        .catch(() => {
-          if (active) setValidatedUid(null);
-        });
-    });
-
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!validatedUid) return;
+    if (!isAuthed) return;
     const timeout = window.setTimeout(() => {
       navigateHome("/");
     }, redirectDelayMs);
     return () => window.clearTimeout(timeout);
-  }, [navigateHome, redirectDelayMs, validatedUid]);
+  }, [isAuthed, navigateHome, redirectDelayMs]);
 
-  if (!validatedUid) return null;
+  if (!isAuthed) return null;
 
   async function handleLogout(): Promise<void> {
     if (signOut) {
@@ -56,7 +36,6 @@ export function LoginSessionPanel({
     } else {
       await getDefaultAuthService().signOut();
     }
-    setValidatedUid(null);
   }
 
   return (

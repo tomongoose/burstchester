@@ -1,38 +1,32 @@
 import {
-  getRedirectResult,
   GoogleAuthProvider,
-  linkWithRedirect,
-  signInWithCredential,
-  signInWithRedirect,
+  linkWithPopup,
+  signInWithPopup,
   signOut as firebaseSignOut,
-  type AuthCredential,
   type Auth,
-  type User as FirebaseAuthUser,
   type User as FirebaseUser,
+  type UserCredential,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { resolveDatasetBackendBaseUrl } from "@/lib/datasets/list-datasets";
+import {
+  clearCachedAuthUser,
+  writeCachedAuthUser,
+} from "@/lib/auth/auth-cache";
 
 export interface AuthServiceDeps {
   readonly auth: Auth;
   readonly clock: () => Date;
-  readonly signInWithRedirect: (
+  readonly signInWithPopup: (
     auth: Auth,
     provider: GoogleAuthProvider,
-  ) => Promise<void>;
-  readonly linkWithRedirect: (
-    user: FirebaseAuthUser,
+  ) => Promise<UserCredential>;
+  readonly linkWithPopup: (
+    user: FirebaseUser,
     provider: GoogleAuthProvider,
-  ) => Promise<void>;
-  readonly getRedirectResult: (
-    auth: Auth,
-  ) => Promise<{ user: FirebaseUser } | null>;
-  readonly signInWithCredential: (
-    auth: Auth,
-    credential: AuthCredential,
-  ) => Promise<{ user: FirebaseUser }>;
+  ) => Promise<UserCredential>;
   readonly firebaseSignOut: (auth: Auth) => Promise<void>;
-  readonly credentialFromRedirectError: (error: unknown) => AuthCredential | null;
+  readonly credentialFromError: (error: unknown) => GoogleAuthProvider | null;
   readonly createGoogleProvider: () => GoogleAuthProvider;
   readonly upsertProfile: (user: FirebaseUser) => Promise<void>;
 }
@@ -40,31 +34,26 @@ export interface AuthServiceDeps {
 export class AuthService {
   constructor(private readonly deps: AuthServiceDeps) {}
 
-  async signInWithGoogle(): Promise<void> {
+  async signInWithGoogle(): Promise<FirebaseUser | null> {
     const provider = this.deps.createGoogleProvider();
     const currentUser = this.deps.auth.currentUser;
-    if (currentUser?.isAnonymous) {
-      try {
-        await this.deps.linkWithRedirect(currentUser, provider);
-      } catch (error) {
-        if (!isCredentialAlreadyInUseError(error)) throw error;
-        await this.deps.firebaseSignOut(this.deps.auth);
-        await this.deps.signInWithRedirect(this.deps.auth, provider);
-      }
-      return;
-    }
 
-    await this.deps.signInWithRedirect(this.deps.auth, provider);
-  }
+    const credential = currentUser?.isAnonymous
+      ? await this.linkAnonymousWithGoogle(currentUser, provider)
+      : await this.deps.signInWithPopup(this.deps.auth, provider);
 
-  async handleGoogleRedirectResult(): Promise<boolean> {
-    const result = await this.readGoogleRedirectResult();
-    if (!result?.user) return false;
-    await this.ensureUserProfile(result.user);
-    return true;
+    const user = credential.user;
+    await this.ensureUserProfile(user);
+    writeCachedAuthUser({
+      uid: user.uid,
+      displayName: user.displayName ?? "",
+      photoURL: user.photoURL ?? "",
+    });
+    return user;
   }
 
   async signOut(): Promise<void> {
+    clearCachedAuthUser();
     await this.deps.firebaseSignOut(this.deps.auth);
   }
 
@@ -75,23 +64,16 @@ export class AuthService {
     await this.deps.upsertProfile(user);
   }
 
-  private async readGoogleRedirectResult(): Promise<{ user: FirebaseUser } | null> {
+  private async linkAnonymousWithGoogle(
+    currentUser: FirebaseUser,
+    provider: GoogleAuthProvider,
+  ): Promise<UserCredential> {
     try {
-      return await this.deps.getRedirectResult(this.deps.auth);
+      return await this.deps.linkWithPopup(currentUser, provider);
     } catch (error) {
       if (!isCredentialAlreadyInUseError(error)) throw error;
-
-      const credential = this.deps.credentialFromRedirectError(error);
       await this.deps.firebaseSignOut(this.deps.auth);
-      if (!credential) {
-        await this.deps.signInWithRedirect(
-          this.deps.auth,
-          this.deps.createGoogleProvider(),
-        );
-        return null;
-      }
-
-      return this.deps.signInWithCredential(this.deps.auth, credential);
+      return this.deps.signInWithPopup(this.deps.auth, provider);
     }
   }
 }
@@ -105,16 +87,24 @@ function isCredentialAlreadyInUseError(error: unknown): boolean {
   );
 }
 
+export function isUserCancelledPopupError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  const code = (error as { code?: unknown }).code;
+  return (
+    code === "auth/popup-closed-by-user"
+    || code === "auth/cancelled-popup-request"
+    || code === "auth/user-cancelled"
+  );
+}
+
 export function buildDefaultAuthService(): AuthService {
   return new AuthService({
     auth: getFirebaseAuth(),
     clock: () => new Date(),
-    signInWithRedirect,
-    linkWithRedirect,
-    getRedirectResult,
-    signInWithCredential,
+    signInWithPopup,
+    linkWithPopup,
     firebaseSignOut,
-    credentialFromRedirectError: (error) => GoogleAuthProvider.credentialFromError(error as never),
+    credentialFromError: (error) => GoogleAuthProvider.credentialFromError(error as never) as unknown as GoogleAuthProvider | null,
     createGoogleProvider: () => new GoogleAuthProvider(),
     upsertProfile: upsertProfileThroughBackend,
   });

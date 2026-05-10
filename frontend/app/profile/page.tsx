@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { buildDatasetDetailHref } from "@/lib/datasets/routes";
 import { fetchDatasetSummaries } from "@/lib/datasets/list-datasets";
 import type { DatasetSummary } from "@/lib/domain/dataset-summary";
@@ -17,7 +17,6 @@ import {
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
 import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
-import { getFirebaseAuth } from "@/lib/firebase";
 import { buildProfileCardDataFromAuthUser } from "@/lib/profile/auth-user-profile";
 import { fetchMyProfile, type UserProfile } from "@/lib/profile/profile-api";
 
@@ -32,42 +31,54 @@ export default function ProfilePage() {
 function ProfilePageContent() {
   const searchParams = useSearchParams();
   const viewedUid = searchParams.get("user") ?? "";
+  const { status, user: currentUser } = useAuth();
   const [profile, setProfile] = useState<ProfileCardData | null>(null);
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [profileDatasets, setProfileDatasets] = useState<readonly DatasetSummary[]>([]);
   const [profileModels, setProfileModels] = useState<readonly ModelSummary[]>([]);
   const [error, setError] = useState("");
   const [assetsError, setAssetsError] = useState("");
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const loading = status === "loading" || profileLoading;
 
   useEffect(() => {
-    const auth = getFirebaseAuth();
-    const unsubAuth = onAuthStateChanged(auth, (user: FirebaseUser | null) => {
-      setCurrentUser(user);
-      setError("");
-      setAssetsError("");
-      setProfileDatasets([]);
-      setProfileModels([]);
-      setEditing(false);
-      if (!user) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-      const fallback = buildProfileCardDataFromAuthUser(user);
-      setProfile(fallback);
-      void fetchMyProfile({ user, uid: viewedUid || undefined })
-        .then((loaded) => setProfile(toProfileCardData(loaded, fallback)))
-        .catch((caught) => {
-          if (viewedUid) setProfile(null);
-          setError(caught instanceof Error ? caught.message : "Profile load failed.");
-        })
-        .finally(() => setLoading(false));
-    });
-    return unsubAuth;
-  }, [viewedUid]);
+    setError("");
+    setAssetsError("");
+    setProfileDatasets([]);
+    setProfileModels([]);
+    setEditing(false);
+
+    if (status === "loading") return;
+
+    if (!currentUser) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    const fallback = buildProfileCardDataFromAuthUser(currentUser);
+    setProfile(fallback);
+    setProfileLoading(true);
+
+    let active = true;
+    void fetchMyProfile({ user: currentUser, uid: viewedUid || undefined })
+      .then((loaded) => {
+        if (active) setProfile(toProfileCardData(loaded, fallback));
+      })
+      .catch((caught) => {
+        if (!active) return;
+        if (viewedUid) setProfile(null);
+        setError(caught instanceof Error ? caught.message : "Profile load failed.");
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentUser, status, viewedUid]);
 
   useEffect(() => {
     if (loading || !currentUser || !profile?.uid) return;
