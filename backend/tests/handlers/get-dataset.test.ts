@@ -104,6 +104,7 @@ describe("getDatasetHandler", () => {
           id: "dataset-1",
           ownerUid: "uid-alice",
           ownerName: "Alice",
+          ownerPhotoURL: "",
         title: "Legal Korean Set",
         description: "Korean legal dataset",
         tags: ["domain/legal", "quality:seed"],
@@ -111,6 +112,51 @@ describe("getDatasetHandler", () => {
         likeCount: 5,
         downloadCount: 9,
         status: "active",
+      },
+    });
+  });
+
+  it("uses the public profile display name for uid-backed dataset owners", async () => {
+    const response = createResponse();
+    const handler = createGetDatasetHandler({
+      db: {
+        doc: (path: string) => ({
+          get: async () => ({
+            exists: path === "users/uid-alice",
+            data: () => ({
+              displayName: "Alice Profile",
+              photoURL: "https://example.com/alice.png",
+            }),
+          }),
+        }),
+      },
+    } as never);
+
+    await handler(
+      { method: "GET", query: { datasetId: "dataset-1" }, body: {} },
+      response as never,
+      async () =>
+        ({
+          id: "dataset-1",
+          ownerUid: "uid-alice",
+          ownerName: "uid-alice",
+          title: "Legal Korean Set",
+          description: "Korean legal dataset",
+          tags: ["domain/legal"],
+          rowCount: 1200,
+          likeCount: 5,
+          downloadCount: 9,
+          status: "active",
+        }) as never,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({
+      ok: true,
+      dataset: {
+        ownerUid: "uid-alice",
+        ownerName: "Alice Profile",
+        ownerPhotoURL: "https://example.com/alice.png",
       },
     });
   });

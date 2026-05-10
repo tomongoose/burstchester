@@ -1,12 +1,12 @@
 import type { DatasetSizeCategory } from "./dataset-size";
 
-export type Language = "ko" | "en" | "ja" | "multi";
+export type Language = "ko" | "en" | "jp" | "multi";
 export type TaskType = "instruction" | "chat" | "completion" | "tool-use";
 
 const ALLOWED_LANGUAGES: ReadonlySet<Language> = new Set<Language>([
   "ko",
   "en",
-  "ja",
+  "jp",
   "multi",
 ]);
 

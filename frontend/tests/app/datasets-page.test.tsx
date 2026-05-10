@@ -57,6 +57,16 @@ vi.mock("@/components/models/ModelGrid", () => ({
   ),
 }));
 
+vi.mock("@/components/models/ModelFilter", () => ({
+  ModelFilter: () => <div>model filters</div>,
+}));
+
+vi.mock("@/components/models/ModelDetailPanel", () => ({
+  ModelDetailPanel: ({ modelId }: { modelId: string }) => (
+    <div>model detail:{modelId}</div>
+  ),
+}));
+
 import DatasetsPage from "@/app/datasets/page";
 
 describe("DatasetsPage", () => {
@@ -141,5 +151,27 @@ describe("DatasetsPage", () => {
     expect(screen.getByText(/showing 1 model/i)).toBeInTheDocument();
     expect(screen.getByText("models:model-1")).toBeInTheDocument();
     expect(screen.queryByText("filters")).not.toBeInTheDocument();
+    expect(screen.getByText("model filters")).toBeInTheDocument();
+  });
+
+  it("scrolls the selected model detail into view when model mode is active", () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+    useSearchParamsMock.mockReturnValue({
+      get: (key: string) => {
+        if (key === "asset") return "models";
+        if (key === "model") return "model-1";
+        return null;
+      },
+    });
+
+    render(<DatasetsPage />);
+
+    expect(screen.getByText("model detail:model-1")).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 });

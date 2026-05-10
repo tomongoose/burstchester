@@ -1,15 +1,38 @@
+"use client";
+
 import type { JSX } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ModelSummary } from "@/lib/domain/model-summary";
 import { buildProfileHref } from "@/lib/profile/routes";
+import { buildModelDetailHref } from "@/lib/models/routes";
 
 interface ModelCardProps {
   readonly model: ModelSummary;
 }
 
 export function ModelCard({ model }: ModelCardProps): JSX.Element {
+  const router = useRouter();
+  const detailHref = buildModelDetailHref(model.id);
+
+  function openDetail(): void {
+    router.push(detailHref);
+  }
+
   return (
-    <article className="card-hover-glow flex h-full flex-col overflow-hidden border border-white/10 bg-surface-container">
+    <article
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${model.id} details`}
+      onClick={openDetail}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openDetail();
+        }
+      }}
+      className="card-hover-glow flex h-full cursor-pointer flex-col overflow-hidden border border-white/10 bg-surface-container focus-visible:outline-2 focus-visible:outline-primary"
+    >
       <div className="relative h-24 overflow-hidden bg-gradient-to-br from-tertiary/20 via-surface-container-high to-surface-container">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_40%,rgba(45,212,191,0.16),transparent_70%)]" />
         <span className="absolute bottom-2 left-md font-label text-label uppercase tracking-[0.22em] text-on-surface-variant">
@@ -21,9 +44,13 @@ export function ModelCard({ model }: ModelCardProps): JSX.Element {
           <p className="font-label text-[11px] uppercase tracking-[0.22em] text-primary">
             Fine-tuned model
           </p>
-          <h4 className="mt-xs break-words font-h3 text-body-lg font-bold text-on-surface">
+          <Link
+            href={detailHref}
+            onClick={(event) => event.stopPropagation()}
+            className="mt-xs block break-words font-h3 text-body-lg font-bold text-on-surface hover:text-primary"
+          >
             {model.id}
-          </h4>
+          </Link>
           <OwnerLink model={model} />
         </div>
         <dl className="grid gap-sm font-body text-body-sm text-on-surface-variant">
@@ -53,6 +80,7 @@ export function ModelCard({ model }: ModelCardProps): JSX.Element {
             href={model.huggingFaceUrl}
             target="_blank"
             rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
             className="font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
           >
             Hugging Face
@@ -80,6 +108,7 @@ function OwnerLink({ model }: { readonly model: ModelSummary }): JSX.Element {
   return (
     <Link
       href={buildProfileHref(model.ownerUid)}
+      onClick={(event) => event.stopPropagation()}
       className="mt-xs inline-flex font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
     >
       by {model.ownerLabel}

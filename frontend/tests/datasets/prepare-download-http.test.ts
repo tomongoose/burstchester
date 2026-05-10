@@ -16,6 +16,8 @@ describe("requestPrepareDownloadHttp", () => {
         cached: false,
         zipPath: "downloads/dataset-1/dataset-1.zip",
         url: "https://signed.example/dataset-1.zip",
+        pointCost: 10,
+        remainingPoints: 9990,
       }),
     }));
 
@@ -35,5 +37,6 @@ describe("requestPrepareDownloadHttp", () => {
       },
     );
     expect(result.url).toBe("https://signed.example/dataset-1.zip");
+    expect(result.remainingPoints).toBe(9990);
   });
 });

@@ -9,6 +9,7 @@ import { createPrepareDatasetDownload } from "./handlers/prepare-dataset-downloa
 import { createListDatasets } from "./handlers/list-datasets";
 import { createListModels } from "./handlers/list-models";
 import { createGetDataset } from "./handlers/get-dataset";
+import { createGetModel } from "./handlers/get-model";
 import {
   createListTrendingDatasets,
   createRefreshTrendingDatasets,
@@ -38,6 +39,7 @@ export const prepareDatasetDownload = createPrepareDatasetDownload(deps);
 export const listDatasets = createListDatasets(deps);
 export const listModels = createListModels(deps);
 export const getDataset = createGetDataset(deps);
+export const getModel = createGetModel(deps);
 export const listTrendingDatasets = createListTrendingDatasets(deps);
 export const refreshTrendingDatasets = createRefreshTrendingDatasets(deps);
 export const registerModel = createRegisterModel(deps);

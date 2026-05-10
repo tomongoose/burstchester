@@ -54,7 +54,7 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
               href="https://github.com/tomato-data/burstchester"
               target="_blank"
               rel="noreferrer"
-              className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant transition-colors hover:text-primary"
+              className="border-b border-transparent pb-1 font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant transition-colors hover:text-primary"
             >
               Docs
             </a>

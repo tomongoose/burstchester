@@ -1,10 +1,12 @@
+export type ModelTrainingMethod = "lora" | "qlora" | "full";
+
 export interface ModelRecordLike {
   readonly id: string;
   readonly ownerUid: string;
   readonly ownerName: string;
   readonly baseModel: string;
   readonly trainingDatasets: readonly string[];
-  readonly trainingMethod: "lora" | "qlora" | "full";
+  readonly trainingMethod: ModelTrainingMethod;
   readonly huggingFaceUrl: string;
   readonly ollamaPullUrl: string | null;
   readonly pointCost: number;
@@ -19,7 +21,7 @@ export interface ModelSummary {
   readonly ownerLabel: string;
   readonly baseModel: string;
   readonly trainingDatasetCount: number;
-  readonly trainingMethod: "lora" | "qlora" | "full";
+  readonly trainingMethod: ModelTrainingMethod;
   readonly huggingFaceUrl: string;
   readonly ollamaPullUrl: string | null;
   readonly pointCost: number;

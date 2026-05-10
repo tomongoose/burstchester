@@ -5,10 +5,13 @@ import {
   type ModelRecordLike,
   type ModelSummary,
 } from "@/lib/domain/model-summary";
+import type { SortOrder } from "@/lib/datasets/build-query";
+import type { ModelSearchFilter } from "./model-filter";
 
 interface ModelSearchOptions {
-  readonly sort: "newest";
+  readonly sort: SortOrder;
   readonly ownerUid?: string;
+  readonly filter?: ModelSearchFilter;
 }
 
 interface ListModelsResponse {
@@ -24,6 +27,12 @@ export async function fetchModelSummaries(
   const url = new URL(baseUrl);
   url.searchParams.set("sort", options.sort);
   if (options.ownerUid) url.searchParams.set("ownerUid", options.ownerUid);
+  if (options.filter?.baseModel) {
+    url.searchParams.set("baseModel", options.filter.baseModel);
+  }
+  if (options.filter?.trainingMethod) {
+    url.searchParams.set("trainingMethod", options.filter.trainingMethod);
+  }
   url.searchParams.set("limit", "24");
 
   const token = await getDatasetApiAuthToken();

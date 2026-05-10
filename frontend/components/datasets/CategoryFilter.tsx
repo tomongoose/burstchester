@@ -13,7 +13,7 @@ const DOMAINS = [
   "creative",
   "gaming",
 ] as const;
-const LANGUAGES: readonly Language[] = ["ko", "en", "ja", "multi"];
+const LANGUAGES: readonly Language[] = ["ko", "en", "jp", "multi"];
 const TASKS: readonly TaskType[] = ["instruction", "chat", "completion", "tool-use"];
 const BASE_MODELS = ["llama3.1:8b", "qwen3:14b", "mistral", "phi4"] as const;
 const SIZES: readonly DatasetSizeCategory[] = ["tiny", "small", "medium", "large"];

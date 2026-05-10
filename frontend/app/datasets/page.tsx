@@ -7,14 +7,18 @@ import { CategoryFilter } from "@/components/datasets/CategoryFilter";
 import { DatasetDetailPanel } from "@/components/datasets/DatasetDetailPanel";
 import { DatasetGrid } from "@/components/datasets/DatasetGrid";
 import { DatasetSelectionTray } from "@/components/datasets/DatasetSelectionTray";
+import { ModelDetailPanel } from "@/components/models/ModelDetailPanel";
+import { ModelFilter } from "@/components/models/ModelFilter";
 import { ModelGrid } from "@/components/models/ModelGrid";
 import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { SearchFilter } from "@/lib/domain/search-filter";
 import { useDatasetSearch } from "@/lib/datasets/use-dataset-search";
 import { useModelSearch } from "@/lib/models/use-model-search";
+import { ModelSearchFilter } from "@/lib/models/model-filter";
 import type { SortOrder } from "@/lib/datasets/build-query";
 import { DATASET_DETAIL_ANCHOR } from "@/lib/datasets/routes";
+import { MODEL_DETAIL_ANCHOR } from "@/lib/models/routes";
 
 type ExploreAsset = "datasets" | "models";
 
@@ -29,16 +33,21 @@ export default function DatasetsPage() {
 function DatasetsPageContent() {
   const searchParams = useSearchParams();
   const selectedDatasetId = searchParams.get("dataset") ?? "";
+  const selectedModelId = searchParams.get("model") ?? "";
   const initialAsset = searchParams.get("asset") === "models" ? "models" : "datasets";
   const [activeAsset, setActiveAsset] = useState<ExploreAsset>(initialAsset);
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
+  const [modelFilter, setModelFilter] = useState<ModelSearchFilter>(
+    ModelSearchFilter.create({}),
+  );
   const [sort, setSort] = useState<SortOrder>("popular");
   const [selectedDatasetIds, setSelectedDatasetIds] = useState<readonly string[]>(
     [],
   );
   const { summaries, loading } = useDatasetSearch(filter, sort);
-  const { models, loading: modelsLoading } = useModelSearch();
+  const { models, loading: modelsLoading } = useModelSearch(modelFilter, "newest");
   const detailRef = useRef<HTMLDivElement | null>(null);
+  const modelDetailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!selectedDatasetId) return;
@@ -47,6 +56,14 @@ function DatasetsPageContent() {
       behavior: "smooth",
     });
   }, [selectedDatasetId]);
+
+  useEffect(() => {
+    if (!selectedModelId) return;
+    modelDetailRef.current?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
+  }, [selectedModelId]);
 
   function handleToggleDatasetSelection(datasetId: string): void {
     setSelectedDatasetIds((current) =>
@@ -95,15 +112,29 @@ function DatasetsPageContent() {
             ) : null}
           </div>
         ) : null}
+        {activeAsset === "models" ? (
+          <div
+            id={MODEL_DETAIL_ANCHOR}
+            ref={modelDetailRef}
+            className="mx-auto max-w-container-max px-gutter pb-lg"
+          >
+            {selectedModelId ? (
+              <ModelDetailPanel modelId={selectedModelId} />
+            ) : null}
+          </div>
+        ) : null}
 
         <div
           className={[
             "mx-auto grid max-w-container-max gap-gutter px-gutter pb-xl",
-            activeAsset === "datasets" ? "lg:grid-cols-[260px_1fr]" : "",
+            "lg:grid-cols-[260px_1fr]",
           ].join(" ")}
         >
           {activeAsset === "datasets" ? (
             <CategoryFilter filter={filter} onChange={setFilter} />
+          ) : null}
+          {activeAsset === "models" ? (
+            <ModelFilter filter={modelFilter} onChange={setModelFilter} />
           ) : null}
           <section className="space-y-md">
             <div className="font-body text-body-md text-on-surface-variant">

@@ -14,11 +14,12 @@ import {
   readStringField,
   stripUndefinedDeep,
 } from "./_request-helpers";
+import { verifyBearerAuth } from "./bearer-auth";
 
 export const DEBUG_UPLOAD_STORAGE_PREFIX = "debug-uploads";
 
 export interface DebugUploadDatasetHandlerDeps {
-  readonly verifyIdToken: HandlerDeps["auth"]["verifyIdToken"];
+  readonly verifyToken: HandlerDeps["auth"]["verifyIdToken"];
   readonly uploadDataset: (input: {
     ownerUid: string;
     ownerName: string;
@@ -48,7 +49,7 @@ export function createDebugUploadDatasetHandler(
     }
 
     try {
-      const decoded = await deps.verifyIdToken(bearerToken);
+      const decoded = await deps.verifyToken(bearerToken);
       const metadata = readRecordField(request.body, "metadata");
       const dataset = await deps.uploadDataset({
         ownerUid: decoded.uid,
@@ -96,7 +97,7 @@ export function createDebugUploadDataset(
   deps: Pick<HandlerDeps, "auth" | "db" | "storage" | "clock" | "fieldValue">,
 ) {
   const handler = createDebugUploadDatasetHandler({
-    verifyIdToken: deps.auth.verifyIdToken,
+    verifyToken: (token) => verifyBearerAuth(deps, token),
     uploadDataset: (input) => uploadDebugDatasetRecord(deps, input),
   });
   return onRequest({ region: "us-central1" }, handler);

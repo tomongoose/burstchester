@@ -6,9 +6,9 @@ interface RestoredAuthUser {
 
 export async function validateRestoredLoginUser(
   user: RestoredAuthUser | null,
-): Promise<Pick<RestoredAuthUser, "uid"> | null> {
+): Promise<RestoredAuthUser | null> {
   if (!user || user.isAnonymous) return null;
 
   const token = await user.getIdToken();
-  return token ? { uid: user.uid } : null;
+  return token ? user : null;
 }
