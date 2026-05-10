@@ -7,6 +7,7 @@ import {
   type CallPrepareDownloadDeps,
   type TriggerBrowserDownloadDeps,
 } from "@/lib/datasets/download";
+import { writeCachedPointBalance } from "@/lib/points/balance";
 
 type Status = "idle" | "pending" | "error";
 
@@ -29,6 +30,9 @@ export function DownloadButton({
     setErrorMessage(null);
     try {
       const response = await callPrepareDownload({ callable }, datasetId);
+      if (typeof response.remainingPoints === "number") {
+        writeCachedPointBalance(response.remainingPoints);
+      }
       triggerBrowserDownload(response.url, { navigate });
       setStatus("idle");
     } catch (err) {

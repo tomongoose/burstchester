@@ -17,6 +17,7 @@ vi.mock("@/lib/firebase", () => ({
 describe("AuthNavAction", () => {
   beforeEach(() => {
     onAuthStateChangedMock.mockReset();
+    window.localStorage.clear();
   });
 
   it("links to sign in while signed out", () => {
@@ -42,6 +43,15 @@ describe("AuthNavAction", () => {
     await user.click(screen.getByRole("button", { name: /logout/i }));
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an approximate point balance before the profile loads", () => {
+    render(<AuthNavAction currentUser={{ uid: "user-1" }} />);
+
+    expect(screen.getByRole("link", { name: /10,000 pts/i })).toHaveAttribute(
+      "href",
+      "/points",
+    );
   });
 
   it("shows the profile nickname and point balance before logout", async () => {

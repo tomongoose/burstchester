@@ -29,5 +29,7 @@ export async function requestPrepareDownloadHttp(
     cached: payload.cached,
     zipPath: payload.zipPath,
     url: payload.url,
+    pointCost: payload.pointCost,
+    remainingPoints: payload.remainingPoints,
   };
 }
