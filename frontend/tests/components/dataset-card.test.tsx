@@ -7,6 +7,7 @@ const baseRecord = {
   id: "ds-1",
   ownerUid: "uid-1",
   ownerName: "Alice",
+  ownerPhotoURL: "https://example.com/alice.png",
   title: "Korean Legal Q&A",
   description: "한국 법률 데이터셋",
   tags: ["legal", "korean", "qa", "instruction", "korean-rrn", "extra-tag"],
@@ -92,6 +93,22 @@ describe("DatasetCard", () => {
     );
   });
 
+  it("shows the owner profile image for non-anonymous owners", () => {
+    const summary = buildDatasetSummary(baseRecord);
+    render(
+      <DatasetCard
+        summary={summary}
+        selected={false}
+        onToggleSelect={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: /Alice profile/i })).toHaveAttribute(
+      "src",
+      "https://example.com/alice.png",
+    );
+  });
+
   it("does not link anonymous owners", () => {
     const summary = buildDatasetSummary({
       ...baseRecord,
@@ -107,6 +124,7 @@ describe("DatasetCard", () => {
 
     expect(screen.getByText("by Anonymous")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /by Anonymous/i })).toBeNull();
+    expect(screen.queryByRole("img", { name: /Anonymous profile/i })).toBeNull();
   });
 
   it("renders a dataset selection toggle", () => {

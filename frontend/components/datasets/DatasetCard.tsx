@@ -98,8 +98,15 @@ function OwnerLink({ summary }: { readonly summary: DatasetSummary }): JSX.Eleme
   return (
     <Link
       href={buildProfileHref(summary.ownerUid)}
-      className="font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
+      className="inline-flex min-w-0 items-center gap-xs font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
     >
+      {summary.ownerPhotoURL ? (
+        <img
+          src={summary.ownerPhotoURL}
+          alt={`${summary.ownerLabel} profile`}
+          className="h-5 w-5 shrink-0 rounded-full border border-primary/30 object-cover"
+        />
+      ) : null}
       {label}
     </Link>
   );

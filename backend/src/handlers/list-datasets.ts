@@ -5,6 +5,10 @@ import { onRequest } from "firebase-functions/v2/https";
 import type { DatasetRecord } from "../core/datasets";
 import type { HandlerDeps } from "./deps";
 import { readBearerToken } from "./_request-helpers";
+import {
+  readDatasetOwnerProfiles,
+  type DatasetOwnerProfile,
+} from "./dataset-owner-profile";
 
 const LIST_DATASETS_MIN_INTERVAL_MS = 5_000;
 const LIST_DATASETS_QUERY_LIMIT = 100;
@@ -23,6 +27,7 @@ interface DatasetSummaryRecord {
   readonly id: string;
   readonly ownerUid: string;
   readonly ownerName: string;
+  readonly ownerPhotoURL: string;
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
@@ -99,9 +104,18 @@ export function createListDatasetsHandler(
       }
 
       const datasets = await listDatasetsRequest(query);
+      const ownerProfiles = await readDatasetOwnerProfiles(
+        deps,
+        datasets.map((dataset) => dataset.ownerUid),
+      );
       response.status(200).json({
         ok: true,
-        datasets: datasets.map(toDatasetSummaryRecord),
+        datasets: datasets.map((dataset) =>
+          toDatasetSummaryRecord(
+            dataset,
+            ownerProfiles.get(dataset.ownerUid),
+          ),
+        ),
       });
     } catch (error) {
       logger.error("listDatasets failed", error);
@@ -380,11 +394,15 @@ export function applyListDatasetsQuery(
   return sorted.slice(0, query.limit);
 }
 
-function toDatasetSummaryRecord(dataset: DatasetRecord): DatasetSummaryRecord {
+function toDatasetSummaryRecord(
+  dataset: DatasetRecord,
+  ownerProfile?: DatasetOwnerProfile,
+): DatasetSummaryRecord {
   return {
     id: dataset.id,
     ownerUid: dataset.ownerUid,
-    ownerName: dataset.ownerName,
+    ownerName: ownerProfile?.displayName || dataset.ownerName,
+    ownerPhotoURL: ownerProfile?.photoURL ?? "",
     title: dataset.title,
     description: dataset.description,
     tags: dataset.tags,

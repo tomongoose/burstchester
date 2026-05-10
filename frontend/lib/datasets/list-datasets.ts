@@ -14,6 +14,7 @@ interface DatasetSummaryRecord {
   readonly id: string;
   readonly ownerUid: string;
   readonly ownerName: string;
+  readonly ownerPhotoURL?: string | null;
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];

@@ -7,9 +7,11 @@ import type { HandlerDeps } from "./deps";
 import { readBearerToken } from "./_request-helpers";
 
 export interface ListModelsQuery {
-  readonly sort: "newest";
+  readonly sort: "popular" | "newest";
   readonly limit: number;
   readonly ownerUid: string | null;
+  readonly baseModel: string | null;
+  readonly trainingMethod: "lora" | "qlora" | "full" | null;
 }
 
 interface ModelSummaryRecord {
@@ -85,8 +87,10 @@ export function readListModelsQuery(
 ): ListModelsQuery {
   const limitValue = Number(request.query?.limit ?? 24);
   return {
-    sort: "newest",
+    sort: request.query?.sort === "popular" ? "popular" : "newest",
     ownerUid: readQueryString(request, "ownerUid"),
+    baseModel: readQueryString(request, "baseModel"),
+    trainingMethod: readTrainingMethod(request),
     limit:
       Number.isInteger(limitValue) && limitValue > 0
         ? Math.min(limitValue, 50)
@@ -101,6 +105,10 @@ export async function executeListModels(
   let ref: FirebaseFirestore.Query = deps.db.collection("models");
   if (query.ownerUid) {
     ref = ref.where("ownerUid", "==", query.ownerUid).limit(Math.max(query.limit, 50));
+  } else if (query.baseModel) {
+    ref = ref.where("baseModel", "==", query.baseModel).limit(Math.max(query.limit, 50));
+  } else if (query.trainingMethod) {
+    ref = ref.where("trainingMethod", "==", query.trainingMethod).limit(Math.max(query.limit, 50));
   } else {
     ref = ref.orderBy("updatedAt", "desc").limit(query.limit);
   }
@@ -111,6 +119,8 @@ export async function executeListModels(
     id: doc.id,
   }))
     .filter((model) => !query.ownerUid || model.ownerUid === query.ownerUid)
+    .filter((model) => !query.baseModel || model.baseModel === query.baseModel)
+    .filter((model) => !query.trainingMethod || model.trainingMethod === query.trainingMethod)
     .sort((left, right) => timestampToMillis(right.updatedAt) - timestampToMillis(left.updatedAt))
     .slice(0, query.limit);
   return Promise.all(models.map((model) => toModelSummaryRecordWithOwner(deps, model)));
@@ -132,7 +142,7 @@ export function toModelSummaryRecord(model: ModelRecord): ModelSummaryRecord {
   };
 }
 
-async function toModelSummaryRecordWithOwner(
+export async function toModelSummaryRecordWithOwner(
   deps: Pick<HandlerDeps, "db">,
   model: ModelRecord,
 ): Promise<ModelSummaryRecord> {
@@ -145,6 +155,14 @@ async function toModelSummaryRecordWithOwner(
     ...summary,
     ownerName,
   };
+}
+
+function readTrainingMethod(
+  request: Pick<Request, "query">,
+): "lora" | "qlora" | "full" | null {
+  const value = readQueryString(request, "trainingMethod");
+  if (value === "lora" || value === "qlora" || value === "full") return value;
+  return null;
 }
 
 function applyCors(response: Pick<Response, "setHeader">): void {

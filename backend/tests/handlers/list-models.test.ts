@@ -133,7 +133,43 @@ describe("listModelsHandler", () => {
     expect(receivedQuery).toEqual({
       sort: "newest",
       ownerUid: "profile-owner",
+      baseModel: null,
+      trainingMethod: null,
       limit: 12,
+    });
+  });
+
+  it("passes model exploration filters through to the list executor", async () => {
+    const response = createResponse();
+    let receivedQuery: unknown;
+    const handler = createListModelsHandler({
+      verifyIdToken: async () => ({ uid: "viewer" }),
+      listModels: async (query) => {
+        receivedQuery = query;
+        return [];
+      },
+    });
+
+    await handler(
+      {
+        method: "GET",
+        headers: { authorization: "Bearer firebase-id-token" },
+        query: {
+          sort: "popular",
+          baseModel: "google/gemma-2-2b",
+          trainingMethod: "qlora",
+        },
+      },
+      response as never,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(receivedQuery).toEqual({
+      sort: "popular",
+      ownerUid: null,
+      baseModel: "google/gemma-2-2b",
+      trainingMethod: "qlora",
+      limit: 24,
     });
   });
 

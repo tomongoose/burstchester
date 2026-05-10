@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { ModelCard } from "@/components/models/ModelCard";
 import { buildModelSummary } from "@/lib/domain/model-summary";
+
+const pushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
 
 const baseRecord = {
   id: "model-1",
@@ -19,6 +26,21 @@ const baseRecord = {
 };
 
 describe("ModelCard", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+  });
+
+  it("opens model detail when the card is clicked", async () => {
+    const user = userEvent.setup();
+    render(<ModelCard model={buildModelSummary(baseRecord)} />);
+
+    await user.click(screen.getByRole("link", { name: /open model-1 details/i }));
+
+    expect(pushMock).toHaveBeenCalledWith(
+      "/datasets?asset=models&model=model-1#model-detail",
+    );
+  });
+
   it("links non-anonymous owners to their public profile", () => {
     render(<ModelCard model={buildModelSummary(baseRecord)} />);
 
