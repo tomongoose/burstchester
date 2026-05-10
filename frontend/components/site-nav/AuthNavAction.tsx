@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX } from "react";
 import Link from "next/link";
-import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { type User as FirebaseUser } from "firebase/auth";
 import { getDefaultAuthService } from "@/lib/auth";
-import { validateRestoredLoginUser } from "@/lib/auth/restored-session";
-import { getFirebaseAuth } from "@/lib/firebase";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   POINT_BALANCE_EVENT,
   readCachedPointBalance,
@@ -25,7 +24,7 @@ export function AuthNavAction({
   signOut,
   fetchProfile = fetchMyProfile,
 }: AuthNavActionProps = {}): JSX.Element {
-  const [observedUser, setObservedUser] = useState<NavUser | null>(null);
+  const { user, cachedSnapshot } = useAuth();
   const [loadedProfileName, setLoadedProfileName] = useState<{
     readonly uid: string;
     readonly name: string;
@@ -33,7 +32,18 @@ export function AuthNavAction({
   } | null>(null);
   const [cachedPoints, setCachedPoints] = useState(readCachedPointBalance);
   const controlled = currentUser !== undefined;
-  const displayedUser = controlled ? currentUser : observedUser;
+  const displayedUser = useMemo<NavUser | null>(() => {
+    if (controlled) return currentUser ?? null;
+    if (user) return user;
+    if (cachedSnapshot) {
+      return {
+        uid: cachedSnapshot.uid,
+        displayName: cachedSnapshot.displayName,
+      };
+    }
+    return null;
+  }, [controlled, currentUser, user, cachedSnapshot]);
+
   const fallbackName = displayedUser ? buildFallbackName(displayedUser) : "";
   const profileName =
     displayedUser && loadedProfileName?.uid === displayedUser.uid
@@ -43,26 +53,6 @@ export function AuthNavAction({
     displayedUser && loadedProfileName?.uid === displayedUser.uid
       ? loadedProfileName.points
       : cachedPoints;
-
-  useEffect(() => {
-    if (controlled) return;
-
-    let active = true;
-    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
-      void validateRestoredLoginUser(user)
-        .then((validatedUser) => {
-          if (active) setObservedUser(validatedUser);
-        })
-        .catch(() => {
-          if (active) setObservedUser(null);
-        });
-    });
-
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [controlled]);
 
   useEffect(() => {
     let active = true;
@@ -131,7 +121,6 @@ export function AuthNavAction({
     }
 
     await getDefaultAuthService().signOut();
-    setObservedUser(null);
   }
 
   return (

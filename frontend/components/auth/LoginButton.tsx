@@ -5,23 +5,28 @@ import { getDefaultAuthService, type AuthService } from "@/lib/auth";
 
 interface LoginButtonProps {
   readonly authService?: AuthService;
+  readonly onClick?: () => void;
+  readonly disabled?: boolean;
 }
 
 export function LoginButton({
   authService,
+  onClick,
+  disabled = false,
 }: LoginButtonProps = {}): JSX.Element {
-  const handleClick = () => {
+  const handleClick = onClick ?? (() => {
     const service = authService ?? getDefaultAuthService();
     void service.signInWithGoogle().catch((error) => {
       console.error("Google sign-in failed", error);
     });
-  };
+  });
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className="group inline-flex h-12 w-full items-center justify-center gap-md rounded-xl bg-primary-container px-lg font-h3 text-body-md font-bold text-on-primary-container transition-all hover:bg-primary hover:text-on-primary active:scale-[0.98]"
+      disabled={disabled}
+      className="group inline-flex h-12 w-full items-center justify-center gap-md rounded-xl bg-primary-container px-lg font-h3 text-body-md font-bold text-on-primary-container transition-all hover:bg-primary hover:text-on-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
     >
       <svg
         className="h-5 w-5 fill-current"

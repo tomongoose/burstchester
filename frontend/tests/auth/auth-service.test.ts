@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   GoogleAuthProvider,
   type Auth,
-  type AuthCredential,
   type User as FirebaseUser,
+  type UserCredential,
 } from "firebase/auth";
 
-import { AuthService, type AuthServiceDeps } from "@/lib/auth";
+import { AuthService, type AuthServiceDeps, isUserCancelledPopupError } from "@/lib/auth";
 
 const FAKE_AUTH = {} as Auth;
 const FAKE_ANONYMOUS_AUTH = {
@@ -17,45 +17,27 @@ const FAKE_ANONYMOUS_AUTH = {
 } as Auth;
 const FIXED_NOW = new Date("2026-05-05T00:00:00Z");
 
+const POPUP_USER: FirebaseUser = {
+  uid: "u-1",
+  displayName: "Test User",
+  email: "test@example.com",
+  photoURL: null,
+} as FirebaseUser;
+
 class AuthAdapterSpy {
-  signInWithRedirectCalls: Array<{ auth: Auth; provider: GoogleAuthProvider }> = [];
-  linkWithRedirectCalls: Array<{ user: FirebaseUser; provider: GoogleAuthProvider }> = [];
-  getRedirectResultCalls: Array<{ auth: Auth }> = [];
-  signInWithCredentialCalls: Array<{ auth: Auth; credential: AuthCredential }> = [];
+  signInWithPopupCalls: Array<{ auth: Auth; provider: GoogleAuthProvider }> = [];
+  linkWithPopupCalls: Array<{ user: FirebaseUser; provider: GoogleAuthProvider }> = [];
   signOutCalls: Array<{ auth: Auth }> = [];
-  redirectResultUser: FirebaseUser = {
-    uid: "u-1",
-    displayName: "Test User",
-    email: "test@example.com",
-    photoURL: null,
-  } as FirebaseUser;
-  redirectResult: { user: FirebaseUser } | null = {
-    user: this.redirectResultUser,
+  popupResultUser: FirebaseUser = POPUP_USER;
+
+  signInWithPopup = async (auth: Auth, provider: GoogleAuthProvider): Promise<UserCredential> => {
+    this.signInWithPopupCalls.push({ auth, provider });
+    return { user: this.popupResultUser } as UserCredential;
   };
 
-  signInWithRedirect = async (auth: Auth, provider: GoogleAuthProvider) => {
-    this.signInWithRedirectCalls.push({ auth, provider });
-  };
-
-  linkWithRedirect = async (user: FirebaseUser, provider: GoogleAuthProvider) => {
-    this.linkWithRedirectCalls.push({ user, provider });
-  };
-
-  getRedirectResult = async (auth: Auth) => {
-    this.getRedirectResultCalls.push({ auth });
-    return this.redirectResult;
-  };
-
-  signInWithCredential = async (auth: Auth, credential: AuthCredential) => {
-    this.signInWithCredentialCalls.push({ auth, credential });
-    return {
-      user: {
-        uid: "existing-google-user",
-        displayName: "Existing User",
-        email: "existing@example.com",
-        photoURL: null,
-      } as FirebaseUser,
-    };
+  linkWithPopup = async (user: FirebaseUser, provider: GoogleAuthProvider): Promise<UserCredential> => {
+    this.linkWithPopupCalls.push({ user, provider });
+    return { user: this.popupResultUser } as UserCredential;
   };
 
   firebaseSignOut = async (auth: Auth) => {
@@ -79,12 +61,10 @@ function createService(overrides: Partial<AuthServiceDeps> = {}) {
   const deps: AuthServiceDeps = {
     auth: FAKE_AUTH,
     clock: () => FIXED_NOW,
-    signInWithRedirect: authAdapter.signInWithRedirect,
-    linkWithRedirect: authAdapter.linkWithRedirect,
-    getRedirectResult: authAdapter.getRedirectResult,
-    signInWithCredential: authAdapter.signInWithCredential,
+    signInWithPopup: authAdapter.signInWithPopup,
+    linkWithPopup: authAdapter.linkWithPopup,
     firebaseSignOut: authAdapter.firebaseSignOut,
-    credentialFromRedirectError: () => null,
+    credentialFromError: () => null,
     createGoogleProvider: () => provider,
     upsertProfile: profileUpsert.upsertProfile,
     ...overrides,
@@ -95,26 +75,27 @@ function createService(overrides: Partial<AuthServiceDeps> = {}) {
 }
 
 describe("AuthService.signInWithGoogle", () => {
-  it("starts Google sign-in with redirect to avoid popup COOP warnings", async () => {
-    const { service, authAdapter, provider } = createService();
+  it("opens a Google popup, upserts the profile, and returns the user", async () => {
+    const { service, authAdapter, profileUpsert, provider } = createService();
 
-    await service.signInWithGoogle();
+    const result = await service.signInWithGoogle();
 
-    expect(authAdapter.signInWithRedirectCalls.length).toBe(1);
-    expect(authAdapter.signInWithRedirectCalls[0].auth).toBe(FAKE_AUTH);
-    expect(authAdapter.signInWithRedirectCalls[0].provider).toBe(provider);
-    expect(authAdapter.getRedirectResultCalls.length).toBe(0);
+    expect(authAdapter.signInWithPopupCalls).toEqual([
+      { auth: FAKE_AUTH, provider },
+    ]);
+    expect(profileUpsert.calls).toEqual([{ user: POPUP_USER }]);
+    expect(result?.uid).toBe("u-1");
   });
 
-  it("links Google redirect onto an existing anonymous user", async () => {
+  it("links Google credentials onto an existing anonymous user via popup", async () => {
     const { service, authAdapter, provider } = createService({
       auth: FAKE_ANONYMOUS_AUTH,
     });
 
     await service.signInWithGoogle();
 
-    expect(authAdapter.signInWithRedirectCalls).toEqual([]);
-    expect(authAdapter.linkWithRedirectCalls).toEqual([
+    expect(authAdapter.signInWithPopupCalls).toEqual([]);
+    expect(authAdapter.linkWithPopupCalls).toEqual([
       {
         user: FAKE_ANONYMOUS_AUTH.currentUser as FirebaseUser,
         provider,
@@ -122,12 +103,12 @@ describe("AuthService.signInWithGoogle", () => {
     ]);
   });
 
-  it("falls back to Google sign-in when an anonymous link collides with an existing account", async () => {
+  it("falls back to fresh popup sign-in when an anonymous link collides with an existing account", async () => {
     const authAdapter = new AuthAdapterSpy();
     const profileUpsert = new ProfileUpsertSpy();
     const provider = new GoogleAuthProvider();
-    authAdapter.linkWithRedirect = async (user, nextProvider) => {
-      authAdapter.linkWithRedirectCalls.push({ user, provider: nextProvider });
+    authAdapter.linkWithPopup = async (user, nextProvider) => {
+      authAdapter.linkWithPopupCalls.push({ user, provider: nextProvider });
       throw Object.assign(new Error("credential already in use"), {
         code: "auth/credential-already-in-use",
       });
@@ -135,114 +116,31 @@ describe("AuthService.signInWithGoogle", () => {
     const service = new AuthService({
       auth: FAKE_ANONYMOUS_AUTH,
       clock: () => FIXED_NOW,
-      signInWithRedirect: authAdapter.signInWithRedirect,
-      linkWithRedirect: authAdapter.linkWithRedirect,
-      getRedirectResult: authAdapter.getRedirectResult,
-      signInWithCredential: authAdapter.signInWithCredential,
+      signInWithPopup: authAdapter.signInWithPopup,
+      linkWithPopup: authAdapter.linkWithPopup,
       firebaseSignOut: authAdapter.firebaseSignOut,
-      credentialFromRedirectError: () => null,
+      credentialFromError: () => null,
       createGoogleProvider: () => provider,
       upsertProfile: profileUpsert.upsertProfile,
     });
 
     await service.signInWithGoogle();
 
-    expect(authAdapter.linkWithRedirectCalls.length).toBe(1);
+    expect(authAdapter.linkWithPopupCalls.length).toBe(1);
     expect(authAdapter.signOutCalls).toEqual([{ auth: FAKE_ANONYMOUS_AUTH }]);
-    expect(authAdapter.signInWithRedirectCalls).toEqual([
+    expect(authAdapter.signInWithPopupCalls).toEqual([
       { auth: FAKE_ANONYMOUS_AUTH, provider },
     ]);
-  });
-});
-
-describe("AuthService.handleGoogleRedirectResult", () => {
-  it("upserts the user profile through the backend after redirect returns", async () => {
-    const { service, authAdapter, profileUpsert } = createService();
-    authAdapter.redirectResultUser = {
-      uid: "new-user",
-      displayName: "Newcomer",
-      email: "new@example.com",
-      photoURL: null,
-    } as FirebaseUser;
-    authAdapter.redirectResult = { user: authAdapter.redirectResultUser };
-
-    await expect(service.handleGoogleRedirectResult()).resolves.toBe(true);
-
-    expect(profileUpsert.calls).toEqual([
-      { user: authAdapter.redirectResultUser },
-    ]);
+    expect(profileUpsert.calls.length).toBe(1);
   });
 
-  it("does nothing when there is no redirect result", async () => {
-    const { service, authAdapter, profileUpsert } = createService();
-    authAdapter.redirectResult = null;
-
-    await expect(service.handleGoogleRedirectResult()).resolves.toBe(false);
-
-    expect(profileUpsert.calls).toEqual([]);
-  });
-
-  it("signs into the existing Google account when redirect link resolution reports credential reuse", async () => {
-    const authAdapter = new AuthAdapterSpy();
-    const profileUpsert = new ProfileUpsertSpy();
-    const provider = new GoogleAuthProvider();
-    const credential = { providerId: "google.com", signInMethod: "google.com" } as AuthCredential;
-    authAdapter.getRedirectResult = async (auth) => {
-      authAdapter.getRedirectResultCalls.push({ auth });
-      throw Object.assign(new Error("credential already in use"), {
-        code: "auth/credential-already-in-use",
-      });
+  it("propagates upsert failures so the caller can surface them", async () => {
+    const failingUpsert = async () => {
+      throw new Error("backend down");
     };
-    const service = new AuthService({
-      auth: FAKE_AUTH,
-      clock: () => FIXED_NOW,
-      signInWithRedirect: authAdapter.signInWithRedirect,
-      linkWithRedirect: authAdapter.linkWithRedirect,
-      getRedirectResult: authAdapter.getRedirectResult,
-      signInWithCredential: authAdapter.signInWithCredential,
-      firebaseSignOut: authAdapter.firebaseSignOut,
-      credentialFromRedirectError: () => credential,
-      createGoogleProvider: () => provider,
-      upsertProfile: profileUpsert.upsertProfile,
-    });
+    const { service } = createService({ upsertProfile: failingUpsert });
 
-    await expect(service.handleGoogleRedirectResult()).resolves.toBe(true);
-
-    expect(authAdapter.signOutCalls).toEqual([{ auth: FAKE_AUTH }]);
-    expect(authAdapter.signInWithCredentialCalls).toEqual([
-      { auth: FAKE_AUTH, credential },
-    ]);
-    expect(profileUpsert.calls[0]?.user.uid).toBe("existing-google-user");
-  });
-
-  it("restarts Google sign-in when redirect link resolution lacks a reusable credential", async () => {
-    const authAdapter = new AuthAdapterSpy();
-    const profileUpsert = new ProfileUpsertSpy();
-    const provider = new GoogleAuthProvider();
-    authAdapter.getRedirectResult = async (auth) => {
-      authAdapter.getRedirectResultCalls.push({ auth });
-      throw Object.assign(new Error("credential already in use"), {
-        code: "auth/credential-already-in-use",
-      });
-    };
-    const service = new AuthService({
-      auth: FAKE_AUTH,
-      clock: () => FIXED_NOW,
-      signInWithRedirect: authAdapter.signInWithRedirect,
-      linkWithRedirect: authAdapter.linkWithRedirect,
-      getRedirectResult: authAdapter.getRedirectResult,
-      signInWithCredential: authAdapter.signInWithCredential,
-      firebaseSignOut: authAdapter.firebaseSignOut,
-      credentialFromRedirectError: () => null,
-      createGoogleProvider: () => provider,
-      upsertProfile: profileUpsert.upsertProfile,
-    });
-
-    await expect(service.handleGoogleRedirectResult()).resolves.toBe(false);
-
-    expect(authAdapter.signOutCalls).toEqual([{ auth: FAKE_AUTH }]);
-    expect(authAdapter.signInWithRedirectCalls).toEqual([{ auth: FAKE_AUTH, provider }]);
-    expect(profileUpsert.calls).toEqual([]);
+    await expect(service.signInWithGoogle()).rejects.toThrow(/backend down/);
   });
 });
 
@@ -265,5 +163,19 @@ describe("AuthService.ensureUserProfile", () => {
     await expect(service.ensureUserProfile(userWithoutUid)).rejects.toThrow(
       /uid/i,
     );
+  });
+});
+
+describe("isUserCancelledPopupError", () => {
+  it("recognises common Firebase popup-cancellation codes", () => {
+    expect(isUserCancelledPopupError({ code: "auth/popup-closed-by-user" })).toBe(true);
+    expect(isUserCancelledPopupError({ code: "auth/cancelled-popup-request" })).toBe(true);
+    expect(isUserCancelledPopupError({ code: "auth/user-cancelled" })).toBe(true);
+  });
+
+  it("returns false for unrelated errors", () => {
+    expect(isUserCancelledPopupError(null)).toBe(false);
+    expect(isUserCancelledPopupError(new Error("network"))).toBe(false);
+    expect(isUserCancelledPopupError({ code: "auth/internal-error" })).toBe(false);
   });
 });
