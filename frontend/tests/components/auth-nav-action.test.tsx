@@ -92,7 +92,20 @@ describe("AuthNavAction", () => {
     )).toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 
-  it("shows logout when a cached non-anonymous session validates", async () => {
+  it("shows the profile nickname for a cached non-anonymous session", async () => {
+    const fetchProfile = vi.fn(async () => ({
+      uid: "cached-user",
+      displayName: "Cached Alice",
+      email: "",
+      photoURL: "",
+      description: "",
+      workplace: "",
+      uploadCount: 0,
+      downloadCount: 0,
+      points: 10000,
+      reputation: 0,
+    }));
+
     onAuthStateChangedMock.mockImplementation((_auth, callback) => {
       callback({
         uid: "cached-user",
@@ -102,9 +115,13 @@ describe("AuthNavAction", () => {
       return () => {};
     });
 
-    render(<AuthNavAction />);
+    render(<AuthNavAction fetchProfile={fetchProfile} />);
 
     expect(await screen.findByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Cached Alice" })).toHaveAttribute(
+      "href",
+      "/profile?user=cached-user",
+    );
   });
 
   it("keeps sign in when cached token validation fails", async () => {
