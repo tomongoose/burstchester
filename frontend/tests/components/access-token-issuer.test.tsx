@@ -30,7 +30,7 @@ describe("AccessTokenIssuer", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /issue anonymous access token/i }));
+    await user.click(screen.getByRole("button", { name: /issue token/i }));
 
     expect(getTokenUser).toHaveBeenCalledTimes(1);
     expect(issueToken).toHaveBeenCalledWith({
@@ -63,9 +63,9 @@ describe("AccessTokenIssuer", () => {
       />,
     );
 
-    await user.clear(screen.getByLabelText(/token label/i));
-    await user.type(screen.getByLabelText(/token label/i), "Colab");
-    await user.click(screen.getByRole("button", { name: /issue access token/i }));
+    await user.clear(screen.getByLabelText(/token name/i));
+    await user.type(screen.getByLabelText(/token name/i), "Colab");
+    await user.click(screen.getByRole("button", { name: /issue token/i }));
 
     expect(issueToken).toHaveBeenCalledWith({
       user: expect.any(Object),
