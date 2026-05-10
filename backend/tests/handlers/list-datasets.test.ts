@@ -141,6 +141,7 @@ describe("listDatasetsHandler", () => {
           id: "dataset-1",
           ownerUid: "uid-alice",
           ownerName: "Alice",
+          ownerPhotoURL: "",
           title: "Legal Ko",
           description: "Korean legal dataset",
           tags: ["domain/legal", "quality:seed"],
@@ -148,6 +149,61 @@ describe("listDatasetsHandler", () => {
           likeCount: 3,
           downloadCount: 9,
           status: "active",
+        },
+      ],
+    });
+  });
+
+  it("uses profile display names for uid-backed dataset owners", async () => {
+    const response = createResponse();
+    const handler = createListDatasetsHandler({
+      db: {
+        doc: (path: string) => ({
+          get: async () => ({
+            exists: path === "users/uid-alice",
+            data: () => ({
+              displayName: "Alice Profile",
+              photoURL: "https://example.com/alice.png",
+            }),
+          }),
+        }),
+      },
+    } as never);
+
+    await handler(
+      {
+        method: "GET",
+        headers: { authorization: "Bearer firebase-id-token" },
+        query: {},
+      },
+      response as never,
+      async () =>
+        [
+          {
+            id: "dataset-1",
+            ownerUid: "uid-alice",
+            ownerName: "uid-alice",
+            title: "Legal Ko",
+            description: "Korean legal dataset",
+            tags: ["domain/legal"],
+            rowCount: 1200,
+            likeCount: 3,
+            downloadCount: 9,
+            status: "active",
+          },
+        ] as never,
+      async () => ({ uid: "viewer" }) as never,
+      async () => ({ allowed: true }) as never,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({
+      ok: true,
+      datasets: [
+        {
+          ownerUid: "uid-alice",
+          ownerName: "Alice Profile",
+          ownerPhotoURL: "https://example.com/alice.png",
         },
       ],
     });

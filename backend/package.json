@@ -17,7 +17,9 @@
     "seed:import": "npm run build && node lib/scripts/seed-import.js",
     "seed:dry-run": "npm run build && node lib/scripts/seed-import.js --dry-run",
     "backfill:point-costs": "npm run build && node lib/scripts/backfill-point-costs.js",
-    "backfill:point-costs:dry-run": "npm run build && node lib/scripts/backfill-point-costs.js --dry-run"
+    "backfill:point-costs:dry-run": "npm run build && node lib/scripts/backfill-point-costs.js --dry-run",
+    "backfill:user-profiles": "npm run build && node lib/scripts/backfill-user-profiles.js",
+    "backfill:user-profiles:dry-run": "npm run build && node lib/scripts/backfill-user-profiles.js --dry-run"
   },
   "dependencies": {
     "firebase": "^12.12.1",

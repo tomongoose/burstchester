@@ -6,6 +6,7 @@ export interface DatasetRecordLike {
   readonly id: string;
   readonly ownerUid: string;
   readonly ownerName: string;
+  readonly ownerPhotoURL?: string | null;
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
@@ -22,6 +23,7 @@ export interface DatasetSummary {
   readonly ownerUid: string;
   readonly ownerName: string;
   readonly ownerLabel: string;
+  readonly ownerPhotoURL: string | null;
   readonly tags: readonly string[];
   readonly likeCount: number;
   readonly downloadCount: number;
@@ -36,11 +38,17 @@ export function buildDatasetSummary(record: DatasetRecordLike): DatasetSummary {
     ownerUid: record.ownerUid,
     ownerName: record.ownerName,
     ownerLabel: buildOwnerLabel(record.ownerUid, record.ownerName),
+    ownerPhotoURL: normalizePhotoURL(record.ownerPhotoURL),
     tags: Object.freeze([...record.tags]),
     likeCount: Math.max(0, record.likeCount),
     downloadCount: Math.max(0, record.downloadCount),
     size: DatasetSize.fromRowCount(Math.max(0, record.rowCount)),
   });
+}
+
+function normalizePhotoURL(value?: string | null): string | null {
+  const photoURL = value?.trim() ?? "";
+  return photoURL.startsWith("https://") ? photoURL : null;
 }
 
 function truncate(value: string, maxLength: number): string {

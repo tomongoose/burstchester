@@ -133,16 +133,19 @@ export function AccessTokenIssuer({
           downloading datasets, models, or preparing training runs.
         </p>
 
-        <form className="mt-xl space-y-md" onSubmit={handleSubmit}>
+        <form
+          className="mt-xl grid gap-md sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+          onSubmit={handleSubmit}
+        >
           <label className="block">
             <span className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
-              Token label
+              Token name
             </span>
             <input
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               className="mt-sm w-full rounded-xl border border-outline-variant/40 bg-background px-md py-3 font-body text-body-md text-on-surface outline-none transition-colors focus:border-primary"
-              aria-label="Token label"
+              aria-label="Token name"
               placeholder="Colab run"
             />
           </label>
@@ -150,16 +153,14 @@ export function AccessTokenIssuer({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center rounded-xl bg-primary px-lg py-3 font-body text-body-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-xl bg-primary px-lg py-3 font-body text-body-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting
               ? "Issuing..."
-              : currentUser
-                ? "Issue access token"
-                : "Issue anonymous access token"}
+              : "Issue token"}
           </button>
           {!currentUser ? (
-            <p className="font-body text-body-sm text-on-surface-variant">
+            <p className="font-body text-body-sm text-on-surface-variant sm:col-span-2">
               No login required. This creates an anonymous Firebase account for
               token ownership. You can still{" "}
               <Link href="/login" className="text-primary hover:underline">

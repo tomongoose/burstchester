@@ -29,7 +29,7 @@ describe("debugUploadDatasetHandler", () => {
     const response = createResponse();
 
     const handler = createDebugUploadDatasetHandler({
-      verifyIdToken: async () => {
+      verifyToken: async () => {
         throw new Error("should not verify");
       },
       uploadDataset: async () => {
@@ -57,7 +57,7 @@ describe("debugUploadDatasetHandler", () => {
     }> = [];
 
     const handler = createDebugUploadDatasetHandler({
-      verifyIdToken: async (idToken) => {
+      verifyToken: async (idToken) => {
         verifiedTokens.push(idToken);
         return {
           uid: "u-debugger",
@@ -116,7 +116,7 @@ describe("debugUploadDatasetHandler", () => {
     const captured: Array<Record<string, unknown>> = [];
 
     const handler = createDebugUploadDatasetHandler({
-      verifyIdToken: async () => ({
+      verifyToken: async () => ({
         uid: "u-debugger",
         email: "debugger@example.com",
         name: "Debugger",
@@ -157,5 +157,47 @@ describe("debugUploadDatasetHandler", () => {
         normalizedStoragePath: "normalized/generated-random-id/dataset.jsonl",
       },
     });
+  });
+
+  it("accepts bearer auth compatible with user access tokens", async () => {
+    const response = createResponse();
+    const verifiedTokens: string[] = [];
+    const uploadedInputs: Array<{ ownerUid: string; ownerName: string }> = [];
+
+    const handler = createDebugUploadDatasetHandler({
+      verifyToken: async (token) => {
+        verifiedTokens.push(token);
+        return { uid: "access-token-owner" };
+      },
+      uploadDataset: async (input) => {
+        uploadedInputs.push({
+          ownerUid: input.ownerUid,
+          ownerName: input.ownerName,
+        });
+        return {
+          id: "access-token-dataset",
+          status: "active",
+          normalizedStoragePath: "normalized/access-token-dataset/dataset.jsonl",
+        };
+      },
+    });
+
+    await handler(
+      {
+        headers: { authorization: "Bearer bst_token-id_secret" },
+        body: {
+          filename: "access-token.jsonl",
+          content:
+            '{"messages":[{"role":"user","content":"ping"},{"role":"assistant","content":"pong"}]}\n',
+        },
+      },
+      response as never,
+    );
+
+    expect(verifiedTokens).toEqual(["bst_token-id_secret"]);
+    expect(uploadedInputs).toEqual([
+      { ownerUid: "access-token-owner", ownerName: "access-token-owner" },
+    ]);
+    expect(response.statusCode).toBe(200);
   });
 });

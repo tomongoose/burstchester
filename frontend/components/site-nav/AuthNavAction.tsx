@@ -5,6 +5,11 @@ import Link from "next/link";
 import { type User as FirebaseUser } from "firebase/auth";
 import { getDefaultAuthService } from "@/lib/auth";
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  POINT_BALANCE_EVENT,
+  readCachedPointBalance,
+  writeCachedPointBalance,
+} from "@/lib/points/balance";
 import { fetchMyProfile } from "@/lib/profile/profile-api";
 import { buildProfileHref } from "@/lib/profile/routes";
 
@@ -25,7 +30,7 @@ export function AuthNavAction({
     readonly name: string;
     readonly points: number;
   } | null>(null);
-
+  const [cachedPoints, setCachedPoints] = useState(readCachedPointBalance);
   const controlled = currentUser !== undefined;
   const displayedUser = useMemo<NavUser | null>(() => {
     if (controlled) return currentUser ?? null;
@@ -47,7 +52,7 @@ export function AuthNavAction({
   const profilePoints =
     displayedUser && loadedProfileName?.uid === displayedUser.uid
       ? loadedProfileName.points
-      : 0;
+      : cachedPoints;
 
   useEffect(() => {
     let active = true;
@@ -62,11 +67,13 @@ export function AuthNavAction({
     void fetchProfile({ user: displayedUser })
       .then((profile) => {
         if (active) {
+          const points = writeCachedPointBalance(profile.points);
           setLoadedProfileName({
             uid: displayedUser.uid,
             name: profile.displayName || fallbackName,
-            points: profile.points,
+            points,
           });
+          setCachedPoints(points);
         }
       })
       .catch(() => {
@@ -77,6 +84,24 @@ export function AuthNavAction({
       active = false;
     };
   }, [displayedUser, fallbackName, fetchProfile]);
+
+  useEffect(() => {
+    function handlePointBalanceUpdate(event: Event): void {
+      const points = event instanceof CustomEvent
+        ? Number(event.detail?.points)
+        : readCachedPointBalance();
+      setCachedPoints(Number.isFinite(points) && points >= 0
+        ? Math.floor(points)
+        : readCachedPointBalance());
+    }
+
+    window.addEventListener(POINT_BALANCE_EVENT, handlePointBalanceUpdate);
+    window.addEventListener("storage", handlePointBalanceUpdate);
+    return () => {
+      window.removeEventListener(POINT_BALANCE_EVENT, handlePointBalanceUpdate);
+      window.removeEventListener("storage", handlePointBalanceUpdate);
+    };
+  }, []);
 
   if (!displayedUser) {
     return (

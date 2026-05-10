@@ -146,11 +146,16 @@ function ProfilePageContent() {
         </div>
       ) : (
         <div className="grid gap-lg">
-          <div className="grid gap-lg lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div
+            className={[
+              "grid gap-lg",
+              editing ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "",
+            ].join(" ")}
+          >
             <ProfileHero
               profile={profile}
               editable
-              onEdit={() => setEditing((value) => !value)}
+              onEdit={() => setEditing(true)}
             />
             {editing ? (
               <ProfileEditor
@@ -162,9 +167,7 @@ function ProfilePageContent() {
                   setEditing(false);
                 }}
               />
-            ) : (
-              <ProfileEditHint onEdit={() => setEditing(true)} />
-            )}
+            ) : null}
           </div>
           <ProfileAssetsShowcase
             datasets={profileDatasets}
@@ -216,29 +219,6 @@ function ProfileHero({
       </div>
       <ProfileCard profile={profile} />
     </section>
-  );
-}
-
-function ProfileEditHint({ onEdit }: { readonly onEdit: () => void }) {
-  return (
-    <aside className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow">
-      <p className="font-label text-label uppercase tracking-widest text-primary">
-        Own profile
-      </p>
-      <h2 className="mt-xs font-h2 text-h2 text-on-surface">
-        Edit your details
-      </h2>
-      <p className="mt-md font-body text-body-md text-on-surface-variant">
-        Update your nickname, workplace, bio, and profile photo.
-      </p>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="mt-lg rounded-lg bg-primary px-md py-2 font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90"
-      >
-        Edit profile
-      </button>
-    </aside>
   );
 }
 

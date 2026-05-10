@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { User as FirebaseUser } from "firebase/auth";
@@ -11,6 +11,10 @@ vi.mock("@/lib/firebase", () => ({
 }));
 
 describe("AuthNavAction", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("links to sign in while signed out", () => {
     render(<AuthNavAction currentUser={null} />);
 
@@ -34,6 +38,15 @@ describe("AuthNavAction", () => {
     await user.click(screen.getByRole("button", { name: /logout/i }));
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an approximate point balance before the profile loads", () => {
+    render(<AuthNavAction currentUser={{ uid: "user-1" }} />);
+
+    expect(screen.getByRole("link", { name: /10,000 pts/i })).toHaveAttribute(
+      "href",
+      "/points",
+    );
   });
 
   it("shows the profile nickname and point balance before logout", async () => {
@@ -87,6 +100,38 @@ describe("AuthNavAction", () => {
     );
 
     expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
+  });
+
+  it("shows the profile nickname for an authed session with a token", async () => {
+    const fetchProfile = vi.fn(async () => ({
+      uid: "cached-user",
+      displayName: "Cached Alice",
+      email: "",
+      photoURL: "",
+      description: "",
+      workplace: "",
+      uploadCount: 0,
+      downloadCount: 0,
+      points: 10000,
+      reputation: 0,
+    }));
+    const fakeUser = {
+      uid: "cached-user",
+      displayName: "Fallback",
+      getIdToken: vi.fn(async () => "cached-id-token"),
+    } as unknown as FirebaseUser;
+
+    render(
+      <TestAuthProvider status="authed" user={fakeUser}>
+        <AuthNavAction fetchProfile={fetchProfile} />
+      </TestAuthProvider>,
+    );
+
+    expect(await screen.findByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Cached Alice" })).toHaveAttribute(
+      "href",
+      "/profile?user=cached-user",
+    );
   });
 
   it("renders the cached snapshot optimistically while status is loading", () => {

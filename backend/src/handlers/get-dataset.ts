@@ -5,11 +5,16 @@ import { onRequest } from "firebase-functions/v2/https";
 import type { DatasetRecord } from "../core/datasets";
 import type { HandlerDeps } from "./deps";
 import { readDatasetId } from "./_request-helpers";
+import {
+  readDatasetOwnerProfiles,
+  type DatasetOwnerProfile,
+} from "./dataset-owner-profile";
 
 interface DatasetSummaryRecord {
   readonly id: string;
   readonly ownerUid: string;
   readonly ownerName: string;
+  readonly ownerPhotoURL: string;
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
@@ -55,9 +60,18 @@ export function createGetDatasetHandler(
         return;
       }
 
+      const ownerProfiles = await readDatasetOwnerProfiles(deps, [
+        dataset.ownerUid,
+      ]);
+
+      const ownerProfile = ownerProfiles.get(dataset.ownerUid);
+
       response.status(200).json({
         ok: true,
-        dataset: toDatasetSummaryRecord(dataset),
+        dataset: toDatasetSummaryRecord(
+          dataset,
+          ownerProfile,
+        ),
       });
     } catch (error) {
       logger.error("getDataset failed", error);
@@ -93,11 +107,15 @@ export async function executeGetDataset(
   };
 }
 
-function toDatasetSummaryRecord(dataset: DatasetRecord): DatasetSummaryRecord {
+function toDatasetSummaryRecord(
+  dataset: DatasetRecord,
+  ownerProfile?: DatasetOwnerProfile,
+): DatasetSummaryRecord {
   return {
     id: dataset.id,
     ownerUid: dataset.ownerUid,
-    ownerName: dataset.ownerName,
+    ownerName: ownerProfile?.displayName || dataset.ownerName,
+    ownerPhotoURL: ownerProfile?.photoURL ?? "",
     title: dataset.title,
     description: dataset.description,
     tags: dataset.tags,

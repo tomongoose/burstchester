@@ -38,6 +38,7 @@ import {
   addDatasetId,
   clearDatasetIds,
   clearSession,
+  loadAccessToken,
   loadSession,
   normalizeDatasetId,
   removeDatasetId,
@@ -331,6 +332,7 @@ async function loadBackendAuthForDownload(flags) {
   const accessToken = resolveConfig(
     flags["access-token"],
     process.env.BURSTCHESTER_ACCESS_TOKEN,
+    await loadAccessToken(),
   );
 
   if (accessToken) {
@@ -423,7 +425,7 @@ async function handleDownloadModel(flags) {
 }
 
 async function handleUploadTestDataset(flags) {
-  const session = await loadActiveSessionForBackendWrite(flags);
+  const auth = await loadBackendAuthForDownload(flags);
 
   const endpointUrl = resolveConfig(
     flags["upload-url"],
@@ -438,7 +440,7 @@ async function handleUploadTestDataset(flags) {
 
   const dataset = await uploadDebugDataset({
     endpointUrl,
-    idToken: session.idToken,
+    idToken: auth.bearerToken,
     filename,
     content,
     metadata: {
@@ -504,7 +506,7 @@ async function handleProxyRecord(flags) {
 }
 
 async function handleUploadProxyLog(flags) {
-  const session = await loadActiveSessionForBackendWrite(flags);
+  const auth = await loadBackendAuthForDownload(flags);
   const endpointUrl = resolveConfig(
     flags["upload-url"],
     process.env.BURSTCHESTER_DEBUG_UPLOAD_URL,
@@ -530,7 +532,7 @@ async function handleUploadProxyLog(flags) {
 
   const dataset = await uploadDebugDataset({
     endpointUrl,
-    idToken: session.idToken,
+    idToken: auth.bearerToken,
     filename,
     content,
     metadata: {
@@ -788,8 +790,8 @@ function printUsage() {
       "  download-model --url <hf-url> [--access-token <token>] [--model-name <name>] [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--access-token <token>] [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
-      "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
-      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--upload-url <url>]",
+      "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
+      "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
       "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
       "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",

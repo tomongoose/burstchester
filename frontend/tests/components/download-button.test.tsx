@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DownloadButton } from "@/components/datasets/DownloadButton";
@@ -31,6 +31,10 @@ function makeDeps(overrides: {
 }
 
 describe("DownloadButton", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("renders the idle Download label initially", () => {
     const deps = makeDeps();
     render(<DownloadButton datasetId="ds-1" callable={deps.callable} navigate={deps.navigate} />);
@@ -76,6 +80,27 @@ describe("DownloadButton", () => {
     await user.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => expect(deps.navigations).toEqual(["https://signed/ds-1.zip"]));
+  });
+
+  it("caches the remaining point balance when the backend returns it", async () => {
+    const deps = makeDeps({
+      callable: async (data) => ({
+        data: {
+          cached: false,
+          zipPath: `downloads/${data.datasetId}/${data.datasetId}.zip`,
+          url: `https://signed/${data.datasetId}.zip`,
+          remainingPoints: 9975,
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    render(<DownloadButton datasetId="ds-1" callable={deps.callable} navigate={deps.navigate} />);
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("burstchester:point-balance")).toBe("9975");
+    });
   });
 
   it("renders an error message and a retry button on failure", async () => {

@@ -4,13 +4,15 @@ import { validateRestoredLoginUser } from "@/lib/auth/restored-session";
 
 describe("validateRestoredLoginUser", () => {
   it("accepts a non-anonymous cached user after token validation succeeds", async () => {
+    const user = {
+      uid: "google-user",
+      isAnonymous: false,
+      getIdToken: vi.fn(async () => "id-token"),
+    };
+
     await expect(
-      validateRestoredLoginUser({
-        uid: "google-user",
-        isAnonymous: false,
-        getIdToken: vi.fn(async () => "id-token"),
-      }),
-    ).resolves.toEqual({ uid: "google-user" });
+      validateRestoredLoginUser(user),
+    ).resolves.toBe(user);
   });
 
   it("rejects anonymous users", async () => {

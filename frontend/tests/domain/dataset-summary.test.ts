@@ -5,6 +5,7 @@ const baseRecord = {
   id: "ds-1",
   ownerUid: "uid-1",
   ownerName: "Alice",
+  ownerPhotoURL: "https://example.com/alice.png",
   title: "Korean Legal Q&A",
   description: "한국 법률 데이터셋",
   tags: ["legal", "korean"],
@@ -48,6 +49,16 @@ describe("buildDatasetSummary", () => {
     expect(summary.ownerUid).toBe("uid-1");
     expect(summary.ownerName).toBe("Alice");
     expect(summary.ownerLabel).toBe("Alice");
+    expect(summary.ownerPhotoURL).toBe("https://example.com/alice.png");
+  });
+
+  it("drops non-https owner profile image urls", () => {
+    const summary = buildDatasetSummary({
+      ...baseRecord,
+      ownerPhotoURL: "http://example.com/alice.png",
+    });
+
+    expect(summary.ownerPhotoURL).toBeNull();
   });
 
   it("maps uid-like owner names to an anonymous display label", () => {

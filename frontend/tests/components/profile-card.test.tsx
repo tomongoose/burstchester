@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { ProfileCard } from "@/components/profile/ProfileCard";
 
 const ALICE = {
@@ -44,13 +43,9 @@ describe("ProfileCard", () => {
     expect(screen.getByTestId("avatar-fallback")).toHaveTextContent("A");
   });
 
-  it("enables editing for the signed-in user's own profile", async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
-    render(<ProfileCard profile={ALICE} editable onEdit={onEdit} />);
+  it("does not render profile editing controls", () => {
+    render(<ProfileCard profile={ALICE} />);
 
-    await user.click(screen.getByRole("button", { name: /edit profile/i }));
-
-    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /edit profile/i })).toBeNull();
   });
 });

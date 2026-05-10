@@ -2,6 +2,8 @@ export interface PrepareDownloadResponse {
   readonly cached: boolean;
   readonly zipPath: string;
   readonly url: string;
+  readonly pointCost?: number;
+  readonly remainingPoints?: number;
 }
 
 export interface CallPrepareDownloadDeps {

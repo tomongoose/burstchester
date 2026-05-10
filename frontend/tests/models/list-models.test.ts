@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { fetchModelSummaries } from "@/lib/models/list-models";
+import { ModelSearchFilter } from "@/lib/models/model-filter";
 
 vi.mock("@/lib/datasets/auth-token", () => ({
   getDatasetApiAuthToken: vi.fn(async () => "firebase-id-token"),
@@ -69,6 +70,30 @@ describe("fetchModelSummaries", () => {
 
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://functions.example/listModels?sort=newest&ownerUid=profile-owner&limit=24",
+      expect.any(Object),
+    );
+  });
+
+  it("sends model exploration filters to listModels", async () => {
+    const fetchImpl = vi.fn(async () => new Response(
+      JSON.stringify({ ok: true, models: [] }),
+      { status: 200 },
+    ));
+
+    await fetchModelSummaries(
+      {
+        sort: "popular",
+        filter: ModelSearchFilter.create({
+          baseModel: "google/gemma-2-2b",
+          trainingMethod: "qlora",
+        }),
+      },
+      fetchImpl,
+      "https://functions.example/listModels",
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://functions.example/listModels?sort=popular&baseModel=google%2Fgemma-2-2b&trainingMethod=qlora&limit=24",
       expect.any(Object),
     );
   });

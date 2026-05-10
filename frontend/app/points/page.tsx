@@ -6,32 +6,55 @@ import { SiteNav } from "@/components/site-nav/SiteNav";
 export const metadata: Metadata = {
   title: "Points Policy | Burstchester",
   description:
-    "How Burstchester points are earned, spent, and planned to support dataset and model creators.",
+    "How Burstchester points work during the Gemma 4 Good Hackathon test open period.",
 };
 
 const FLOWS = [
   {
-    title: "Use points to download assets",
-    body: "Datasets and models can set a point cost. When you download an asset, points make the exchange explicit and keep usage tied to creator value.",
+    title: "Downloads create a reward signal",
+    body: "When a user downloads a dataset or model, the point cost records real demand for that asset. During the test period this is an accounting signal, and the uploader can receive a share of the points after marketplace review and abuse checks.",
     icon: "download",
   },
   {
-    title: "Earn from useful work",
-    body: "Publishing assets, improving quality, and attracting real downloads are the foundation for future point rewards and creator reputation.",
+    title: "Creators earn from useful uploads",
+    body: "Useful uploads should not disappear into a flat list. Points help identify assets that other builders actually use, giving uploaders a measurable reason to improve documentation, quality, coverage, and licensing clarity.",
     icon: "workspace_premium",
   },
   {
-    title: "Withdraw earned value",
-    body: "The roadmap includes cash withdrawals for points earned through accepted marketplace activity, so valuable contributions can become real income.",
+    title: "Cash withdrawal is planned",
+    body: "After the payment layer opens, creators with enough eligible earned points will be able to request a cash withdrawal through a verified payout flow. The exact threshold, review rules, fees, and settlement schedule will be published before activation.",
     icon: "payments",
   },
 ] as const;
 
 const PRINCIPLES = [
-  "Points should reward assets that save other builders time.",
-  "Costs should stay visible before download or model access.",
-  "Creator payouts should be tied to legitimate marketplace activity.",
-  "Abuse prevention, review, and transparent accounting come before payment launch.",
+  "Purchases and cash withdrawals are disabled during the Gemma 4 Good Hackathon test open period.",
+  "Download costs should be visible before users spend points.",
+  "Creator rewards should come from legitimate downloads and accepted marketplace activity.",
+  "Point activity should improve asset discovery, reputation, and trust signals.",
+] as const;
+
+const EXPLAINERS = [
+  {
+    title: "Test open status",
+    body: "Burstchester is currently open for testing around the Gemma 4 Good Hackathon. Point purchases, paid checkout, and cash withdrawals are not active yet. Balances shown during this period help us test product flow, download accounting, creator incentives, and abuse prevention before real payments are enabled.",
+  },
+  {
+    title: "What happens when someone downloads",
+    body: "A downloaded asset sends a stronger signal than a view or a like. The downloader spends the listed point cost, and the uploader may receive an eligible portion of that value once the activity passes basic review. That portion is intentionally not treated as final cash during the test period.",
+  },
+  {
+    title: "How earned points can become cash later",
+    body: "When payment functionality is activated, creators who have accumulated enough eligible earned points will be able to submit a withdrawal request. We plan to require account verification, fraud checks, minimum balance rules, and transparent payout records so withdrawals reward real contribution rather than artificial traffic.",
+  },
+  {
+    title: "Why this encourages participation",
+    body: "The point system gives builders a reason to upload assets that others can actually use. Downloaders get a clear way to spend value on helpful datasets and models, while creators get a visible path from contribution to reputation, marketplace demand, and future payout eligibility.",
+  },
+  {
+    title: "Why points improve trust",
+    body: "Points can become a quality signal when they are tied to real downloads, review, repeat usage, and creator history. Assets that consistently earn points from legitimate users can be ranked and evaluated with more confidence than assets judged only by titles, tags, or self-written descriptions.",
+  },
 ] as const;
 
 export default function PointsPage() {
@@ -49,10 +72,11 @@ export default function PointsPage() {
                 A marketplace currency for useful AI assets.
               </h1>
               <p className="mt-md max-w-2xl font-body text-body-lg text-on-surface-variant">
-                Points are designed to connect the people who publish strong
-                datasets and models with the builders who use them. Spend them
-                on downloads, earn them through contribution, and eventually
-                withdraw earned value as the payment layer matures.
+                Points connect useful datasets and models with the people who
+                build on top of them. During the Gemma 4 Good Hackathon test
+                open period, payment and cash withdrawal features are disabled
+                while we validate download accounting, creator rewards, and
+                trust signals.
               </p>
               <div className="mt-lg flex flex-wrap gap-sm">
                 <Link
@@ -77,7 +101,7 @@ export default function PointsPage() {
               <div className="mt-md grid gap-md">
                 <PolicyMetric label="Initial balance" value="10,000 pts" />
                 <PolicyMetric label="Used for" value="Downloads" />
-                <PolicyMetric label="Roadmap" value="Purchase + withdraw" />
+                <PolicyMetric label="Test status" value="Payments off" />
               </div>
             </aside>
           </div>
@@ -102,6 +126,27 @@ export default function PointsPage() {
               </article>
             ))}
           </div>
+
+          <section className="mt-lg rounded-xl border border-primary/25 bg-primary/10 p-lg">
+            <p className="font-label text-label uppercase tracking-widest text-primary">
+              Gemma 4 Good Hackathon test open
+            </p>
+            <h2 className="mt-xs font-h2 text-h2 text-on-surface">
+              Payments and cash withdrawals are not active yet.
+            </h2>
+            <div className="mt-md grid gap-md">
+              {EXPLAINERS.map((section) => (
+                <article key={section.title}>
+                  <h3 className="font-h2 text-h3 text-on-surface">
+                    {section.title}
+                  </h3>
+                  <p className="mt-xs font-body text-body-md text-on-surface-variant">
+                    {section.body}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <div className="mt-lg grid gap-lg lg:grid-cols-[0.8fr_1.2fr]">
             <section className="rounded-xl border border-outline-variant/30 bg-surface-container p-lg card-inner-shadow">
@@ -128,14 +173,15 @@ export default function PointsPage() {
                 Payment roadmap
               </p>
               <h2 className="mt-xs font-h2 text-h2 text-on-surface">
-                Payments are planned, not rushed.
+                Real payments come after trustworthy accounting.
               </h2>
               <p className="mt-md font-body text-body-md text-on-surface-variant">
-                Burstchester will add point purchases and creator withdrawals
-                after the marketplace has the right controls: clear balances,
-                download accounting, asset review, abuse monitoring, and payout
-                rules. Until then, points establish the economic layer and make
-                the value of datasets and models visible.
+                Burstchester will activate point purchases and creator
+                withdrawals only after the marketplace has clear balances,
+                download accounting, asset review, abuse monitoring, payout
+                rules, and user-facing policy disclosures. Until then, points
+                are used to test the economic layer and make the value of
+                datasets and models easier to evaluate.
               </p>
             </section>
           </div>
