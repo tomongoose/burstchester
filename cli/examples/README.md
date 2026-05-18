@@ -20,8 +20,8 @@ registration flow.
 3. Add Colab secrets:
    - `BURSTCHESTER_ACCESS_TOKEN`
    - `HF_TOKEN` for training notebooks that download gated models or upload to Hugging Face
-4. Edit the first `#@title` settings cell, especially model repo, dataset IDs,
-   output paths, and upload metadata.
+4. Edit the first `#@title` settings cell, especially model repo, model title,
+   dataset IDs, output paths, and upload metadata.
 5. Run cells from top to bottom.
 
 Training notebooks install model dependencies through
@@ -49,3 +49,8 @@ OUTPUT_MODEL_REPO = "hf-user/my-trained-model"
 ```
 
 Set `SKIP_REGISTER = True` if you only want to train and upload without registering the model in Burstchester.
+
+## Model Titles
+
+Training notebooks use `MODEL_TITLE` as the display name shown on Burstchester
+model cards and detail pages. If it is empty, the website shows `Untitled`.

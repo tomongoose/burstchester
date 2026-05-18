@@ -23,6 +23,7 @@
 {
   id: string,                    // "model-{uuid}"
   ownerUid: string,
+  title: string,                 // display name, empty means UI fallback "Untitled"
   baseModel: string,             // "qwen3:14b" 등
   trainingDatasets: string[],    // dataset id 배열 (model → dataset 링크)
   trainingMethod: "lora" | "qlora" | "full",

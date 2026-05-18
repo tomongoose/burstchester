@@ -54,6 +54,7 @@ test("buildRegisterModelRequest posts paid training metadata", () => {
   const request = buildRegisterModelRequest({
     endpointUrl: "https://functions.example/registerModelHttp",
     idToken: "firebase-id-token",
+    title: "Legal Ko LoRA",
     huggingFaceUrl: "https://huggingface.co/user/model/resolve/main/model.gguf",
     baseModel: "Qwen/Qwen3-0.6B",
     trainingDatasets: ["dataset-1"],
@@ -65,6 +66,7 @@ test("buildRegisterModelRequest posts paid training metadata", () => {
   assert.equal(request.url, "https://functions.example/registerModelHttp");
   assert.equal(request.options.method, "POST");
   assert.deepEqual(JSON.parse(request.options.body), {
+    title: "Legal Ko LoRA",
     huggingFaceUrl: "https://huggingface.co/user/model/resolve/main/model.gguf",
     baseModel: "Qwen/Qwen3-0.6B",
     trainingDatasets: ["dataset-1"],

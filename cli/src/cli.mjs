@@ -583,6 +583,7 @@ async function handleRegisterModel(flags) {
   const model = await registerModel({
     endpointUrl,
     idToken: auth.bearerToken,
+    title: typeof flags.title === "string" ? flags.title : undefined,
     huggingFaceUrl: requiredFlag(flags, "huggingface-url"),
     baseModel: typeof flags["base-model"] === "string" ? flags["base-model"] : "unknown",
     trainingDatasets: datasetIds,
@@ -809,7 +810,7 @@ function printUsage() {
       "  upload-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
-      "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
+      "  register-model --huggingface-url <hf-url> [--title <name>] [--base-model <name>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
       "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
       "  train [--backend-url <url>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",
       "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",

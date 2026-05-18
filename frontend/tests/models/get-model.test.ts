@@ -14,6 +14,7 @@ describe("fetchModelSummaryById", () => {
         model: {
           id: "model-1",
           ownerUid: "user-1",
+          title: "Legal Ko LoRA",
           ownerName: "Alice",
           baseModel: "google/gemma-2-2b",
           trainingDatasets: ["dataset-1"],
@@ -37,6 +38,7 @@ describe("fetchModelSummaryById", () => {
     expect(model).toEqual(
       expect.objectContaining({
         id: "model-1",
+        title: "Legal Ko LoRA",
         ownerLabel: "Alice",
         baseModel: "google/gemma-2-2b",
       }),

@@ -26,7 +26,7 @@ export function ModelCard({ model }: ModelCardProps): JSX.Element {
     <article
       role="link"
       tabIndex={0}
-      aria-label={`Open ${model.id} details`}
+      aria-label={`Open ${model.title} details`}
       onClick={openDetail}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -52,7 +52,7 @@ export function ModelCard({ model }: ModelCardProps): JSX.Element {
             onClick={(event) => event.stopPropagation()}
             className="mt-xs block break-words font-h3 text-body-lg font-bold text-on-surface hover:text-primary"
           >
-            {model.id}
+            {model.title}
           </Link>
           <OwnerLink model={model} />
         </div>

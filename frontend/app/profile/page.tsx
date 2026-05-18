@@ -374,7 +374,7 @@ function ModelAssetCard({ model }: { readonly model: ModelSummary }) {
       <div className="flex items-start justify-between gap-md">
         <div className="min-w-0">
           <h4 className="break-words font-h3 text-body-lg font-bold text-on-surface group-hover:text-primary">
-            {model.id}
+            {model.title}
           </h4>
           <p className="mt-xs break-words font-body text-body-sm text-on-surface-variant">
             Base: {model.baseModel}

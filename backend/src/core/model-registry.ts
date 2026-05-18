@@ -10,6 +10,7 @@ export interface ModelEvalReport {
 export interface ModelRecord {
   readonly id: string;
   readonly ownerUid: string;
+  readonly title: string;
   readonly baseModel: string;
   readonly trainingDatasets: readonly string[];
   readonly trainingMethod: "lora" | "qlora" | "full";
@@ -23,6 +24,7 @@ export interface ModelRecord {
 
 export interface ModelRegistrationInput {
   readonly ownerUid: string;
+  readonly title?: string;
   readonly huggingFaceUrl: string;
   readonly baseModel?: string;
   readonly trainingDatasets?: readonly string[];
@@ -92,6 +94,7 @@ export function buildModelRecord(
   return Object.freeze({
     id: idFactory(),
     ownerUid,
+    title: input.title?.trim() || "",
     baseModel,
     trainingDatasets,
     trainingMethod: normalizeTrainingMethod(input.trainingMethod),

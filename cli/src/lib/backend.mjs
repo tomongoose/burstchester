@@ -156,6 +156,7 @@ export async function recordModelDownload({
 export function buildRegisterModelRequest({
   endpointUrl,
   idToken,
+  title,
   huggingFaceUrl,
   baseModel,
   trainingDatasets = [],
@@ -173,6 +174,7 @@ export function buildRegisterModelRequest({
         accept: "application/json",
       },
       body: JSON.stringify({
+        title,
         huggingFaceUrl,
         baseModel,
         trainingDatasets,
@@ -187,6 +189,7 @@ export function buildRegisterModelRequest({
 export async function registerModel({
   endpointUrl,
   idToken,
+  title,
   huggingFaceUrl,
   baseModel,
   trainingDatasets = [],
@@ -198,6 +201,7 @@ export async function registerModel({
   const request = buildRegisterModelRequest({
     endpointUrl,
     idToken,
+    title,
     huggingFaceUrl,
     baseModel,
     trainingDatasets,

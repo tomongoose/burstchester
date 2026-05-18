@@ -32,6 +32,7 @@ Optional env:
   OUTPUT_MODEL_URL                Existing Hugging Face downloadable URL to register.
   OUTPUT_MODEL_FILE               Optional file inside OUTPUT_MODEL_REPO to register.
   MODEL_POINT_COST                Point cost for the registered output model.
+  MODEL_TITLE                     Display name for the registered output model.
   OLLAMA_PULL_URL                 Optional Ollama pull URL stored with the model record.
   SKIP_REGISTER=1                 Train only, skip backend model registration.
   SKIP_HF_UPLOAD=1                Do not upload output to Hugging Face.
@@ -264,6 +265,7 @@ NODE
   local register_args=(
     register-model
     --huggingface-url "${model_url}"
+    --title "${MODEL_TITLE:-}"
     --base-model "${BASE_MODEL}"
     --dataset-file "${WORKSPACE}.dataset-ids.txt"
     --training-method "${registered_training_method}"

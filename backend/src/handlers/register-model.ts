@@ -21,6 +21,7 @@ export function createRegisterModel(
     try {
       const record = await registerModelForUser(deps, {
         ownerUid: request.auth.uid,
+        title: typeof request.data?.title === "string" ? request.data.title : undefined,
         huggingFaceUrl: String(request.data?.huggingFaceUrl ?? ""),
         baseModel: typeof request.data?.baseModel === "string" ? request.data.baseModel : undefined,
         trainingDatasets: Array.isArray(request.data?.trainingDatasets)
@@ -71,6 +72,7 @@ export async function handleRegisterModelHttp(
     const decoded = await verifyToken(bearerToken);
     const record = await registerModelForUser(deps, {
       ownerUid: decoded.uid,
+      title: readStringField(request.body, "title"),
       huggingFaceUrl: readStringField(request.body, "huggingFaceUrl"),
       baseModel: readStringField(request.body, "baseModel"),
       trainingDatasets: readStringArrayField(request.body, "trainingDatasets"),
@@ -100,6 +102,7 @@ async function registerModelForUser(
   deps: Pick<HandlerDeps, "database" | "db" | "clock" | "generateId" | "fieldValue">,
   input: {
     ownerUid: string;
+    title?: string;
     huggingFaceUrl: string;
     baseModel?: string;
     trainingDatasets?: readonly string[];

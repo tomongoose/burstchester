@@ -3,6 +3,7 @@ export type ModelTrainingMethod = "lora" | "qlora" | "full";
 export interface ModelRecordLike {
   readonly id: string;
   readonly ownerUid: string;
+  readonly title?: string;
   readonly ownerName: string;
   readonly baseModel: string;
   readonly trainingDatasets: readonly string[];
@@ -17,6 +18,7 @@ export interface ModelRecordLike {
 export interface ModelSummary {
   readonly id: string;
   readonly ownerUid: string;
+  readonly title: string;
   readonly ownerName: string;
   readonly ownerLabel: string;
   readonly baseModel: string;
@@ -32,6 +34,7 @@ export function buildModelSummary(record: ModelRecordLike): ModelSummary {
   return Object.freeze({
     id: record.id,
     ownerUid: record.ownerUid,
+    title: buildModelTitle(record.title),
     ownerName: record.ownerName,
     ownerLabel: buildOwnerLabel(record.ownerUid, record.ownerName),
     baseModel: record.baseModel,
@@ -42,6 +45,11 @@ export function buildModelSummary(record: ModelRecordLike): ModelSummary {
     pointCost: Math.max(0, record.pointCost),
     updatedAt: record.updatedAt,
   });
+}
+
+function buildModelTitle(title: string | undefined): string {
+  const trimmed = title?.trim() ?? "";
+  return trimmed || "Untitled";
 }
 
 function buildOwnerLabel(ownerUid: string, ownerName: string): string {

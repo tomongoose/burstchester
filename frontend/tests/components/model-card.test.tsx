@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
 const baseRecord = {
   id: "model-1",
   ownerUid: "uid-1",
+  title: "Legal Ko LoRA",
   ownerName: "Alice",
   baseModel: "google/gemma-2-2b",
   trainingDatasets: ["dataset-1"],
@@ -34,11 +35,26 @@ describe("ModelCard", () => {
     const user = userEvent.setup();
     render(<ModelCard model={buildModelSummary(baseRecord)} />);
 
-    await user.click(screen.getByRole("link", { name: /open model-1 details/i }));
+    await user.click(screen.getByRole("link", { name: /open legal ko lora details/i }));
 
     expect(pushMock).toHaveBeenCalledWith(
       "/datasets?asset=models&model=model-1#model-detail",
     );
+  });
+
+  it("renders the registered model title", () => {
+    render(<ModelCard model={buildModelSummary(baseRecord)} />);
+
+    expect(screen.getByRole("link", { name: "Legal Ko LoRA" })).toHaveAttribute(
+      "href",
+      "/datasets?asset=models&model=model-1#model-detail",
+    );
+  });
+
+  it("falls back to Untitled when no model title is registered", () => {
+    render(<ModelCard model={buildModelSummary({ ...baseRecord, title: "" })} />);
+
+    expect(screen.getByRole("link", { name: "Untitled" })).toBeInTheDocument();
   });
 
   it("links non-anonymous owners to their public profile", () => {

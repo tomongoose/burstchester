@@ -17,6 +17,7 @@ export interface ListModelsQuery {
 interface ModelSummaryRecord {
   readonly id: string;
   readonly ownerUid: string;
+  readonly title: string;
   readonly ownerName: string;
   readonly baseModel: string;
   readonly trainingDatasets: readonly string[];
@@ -130,6 +131,7 @@ export function toModelSummaryRecord(model: ModelRecord): ModelSummaryRecord {
   return {
     id: model.id,
     ownerUid: model.ownerUid,
+    title: model.title ?? "",
     ownerName: "",
     baseModel: model.baseModel,
     trainingDatasets: model.trainingDatasets,

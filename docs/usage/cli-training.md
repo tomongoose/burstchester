@@ -113,6 +113,7 @@ After uploading training output to Hugging Face, register it in the Burstchester
 ```bash
 node cli/src/cli.mjs register-model \
   --huggingface-url https://huggingface.co/mk48/my-model/resolve/main/model.safetensors \
+  --title "Gemma 4 E2B Legal Ko FFT" \
   --base-model google/gemma-4-E2B \
   --dataset-id legal-ko \
   --training-method full \
@@ -151,6 +152,7 @@ export DATASET_IDS="legal-ko,finance-ko"
 export BASE_MODEL="google/gemma-4-E2B"
 export TRAIN_COMMAND="train-gemma4-e2b-full"
 export OUTPUT_MODEL_REPO="hf-user/gemma4-e2b-fft"
+export MODEL_TITLE="Gemma 4 E2B FFT"
 
 bash cli/scripts/colab-train-and-register.sh
 ```
@@ -169,6 +171,7 @@ export DATASET_IDS="legal-ko,finance-ko"
 export BASE_MODEL="google/gemma-2b-it"
 export TRAIN_COMMAND="train-gemma-2b-it-lora"
 export OUTPUT_MODEL_REPO="hf-user/gemma-2b-it-lora"
+export MODEL_TITLE="Gemma 2B IT LoRA"
 
 bash cli/scripts/colab-train-and-register.sh
 ```

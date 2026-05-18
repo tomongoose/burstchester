@@ -66,6 +66,7 @@ describe("listModelsHandler", () => {
         {
           id: "model-1",
           ownerUid: "user-1",
+          title: "Legal Ko LoRA",
           ownerName: "",
           baseModel: "google/gemma-3",
           trainingDatasets: ["dataset-1"],
@@ -95,6 +96,7 @@ describe("listModelsHandler", () => {
         {
           id: "model-1",
           ownerUid: "user-1",
+          title: "Legal Ko LoRA",
           ownerName: "",
           baseModel: "google/gemma-3",
           trainingDatasets: ["dataset-1"],
@@ -177,6 +179,7 @@ describe("listModelsHandler", () => {
     const record: ModelRecord = {
       id: "model-1",
       ownerUid: "user-1",
+      title: "Legal Ko LoRA",
       baseModel: "Qwen/Qwen3-0.6B",
       trainingDatasets: ["dataset-1", "dataset-2"],
       trainingMethod: "qlora",
@@ -190,6 +193,7 @@ describe("listModelsHandler", () => {
 
     expect(toModelSummaryRecord(record)).toMatchObject({
       id: "model-1",
+      title: "Legal Ko LoRA",
       ownerName: "",
       trainingDatasets: ["dataset-1", "dataset-2"],
       createdAt: "1970-01-01T00:00:01.000Z",

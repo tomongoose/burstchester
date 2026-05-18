@@ -266,6 +266,7 @@ export DATASET_IDS="dataset-1,dataset-2"
 export BASE_MODEL="google/gemma-2b-it"
 export TRAIN_COMMAND="train-gemma-2b-it-lora"
 export OUTPUT_MODEL_REPO="<hf-user-or-org>/<repo-name>"
+export MODEL_TITLE="Gemma 2B IT LoRA"
 
 bash cli/scripts/colab-train-and-register.sh
 ```
@@ -277,5 +278,6 @@ bash cli/scripts/colab-train-and-register.sh
 - `TRAIN_COMMAND`: `train`, `train-gemma-2b-it-lora`, `train-gemma4-e2b-full`
 - `OUTPUT_MODEL_REPO`: 학습 결과를 업로드할 Hugging Face model repo
 - `OUTPUT_MODEL_URL`: 이미 업로드된 파일 URL을 등록할 때 사용
+- `MODEL_TITLE`: Burstchester 모델 카드와 상세 페이지에 표시할 이름
 - `MODEL_POINT_COST`: 등록할 모델 다운로드 가격 포인트
 - `SKIP_REGISTER=1`: 학습만 실행하고 백엔드 등록 생략

@@ -105,6 +105,7 @@ describe("getModelHandler", () => {
       async () => ({
         id: "model-1",
         ownerUid: "uid-alice",
+        title: "Legal Ko LoRA",
         baseModel: "google/gemma-2-2b",
         trainingDatasets: ["dataset-1"],
         trainingMethod: "qlora",
@@ -123,6 +124,7 @@ describe("getModelHandler", () => {
       model: {
         id: "model-1",
         ownerUid: "uid-alice",
+        title: "Legal Ko LoRA",
         ownerName: "Alice",
         baseModel: "google/gemma-2-2b",
         trainingDatasets: ["dataset-1"],

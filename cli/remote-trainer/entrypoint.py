@@ -50,6 +50,7 @@ def main() -> None:
             access_token=settings["burstchester_access_token"],
             huggingface_url=f"https://huggingface.co/{settings['output_model_repo']}",
             base_model=settings["base_model"],
+            title=settings["model_title"],
             dataset_ids=dataset_ids,
             training_method=effective_training_method(settings["train_command"], settings["training_method"]),
             point_cost=settings["model_point_cost"],
@@ -79,6 +80,7 @@ def read_settings() -> dict:
         "dataset_download_url": env("DATASET_DOWNLOAD_URL", DEFAULT_DATASET_DOWNLOAD_URL),
         "model_register_url": env("MODEL_REGISTER_URL", DEFAULT_MODEL_REGISTER_URL),
         "model_point_cost": env("MODEL_POINT_COST", "100"),
+        "model_title": env("MODEL_TITLE", ""),
         "skip_register": env_bool("SKIP_REGISTER", default=True),
     }
 
@@ -229,6 +231,7 @@ def register_model(
     access_token: str,
     huggingface_url: str,
     base_model: str,
+    title: str,
     dataset_ids: list[str],
     training_method: str,
     point_cost: str,
@@ -236,6 +239,7 @@ def register_model(
     body = json.dumps(
         {
             "huggingFaceUrl": huggingface_url,
+            "title": title,
             "baseModel": base_model,
             "trainingDatasets": dataset_ids,
             "trainingMethod": training_method,

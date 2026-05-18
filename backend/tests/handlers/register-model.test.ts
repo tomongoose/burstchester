@@ -63,6 +63,7 @@ describe("registerModelHttp", () => {
       {
         headers: { authorization: "Bearer bst_user_token-secret" },
         body: {
+          title: "Legal Ko LoRA",
           huggingFaceUrl: "https://huggingface.co/google/gemma-2-2b/resolve/main/model.safetensors",
           trainingMethod: "qlora",
         },
@@ -84,6 +85,7 @@ describe("registerModelHttp", () => {
       },
     });
     expect(written[0]?.path).toBe("models/model-model-id");
+    expect(written[0]?.data).toMatchObject({ title: "Legal Ko LoRA" });
   });
 
   it("charges unpaid training assets during registration", async () => {

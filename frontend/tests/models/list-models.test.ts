@@ -16,6 +16,7 @@ describe("fetchModelSummaries", () => {
           {
             id: "model-1",
             ownerUid: "user-1",
+            title: "Legal Ko LoRA",
             ownerName: "Alice",
             baseModel: "Qwen/Qwen3-0.6B",
             trainingDatasets: ["dataset-1"],
@@ -40,6 +41,7 @@ describe("fetchModelSummaries", () => {
     expect(models).toEqual([
       expect.objectContaining({
         id: "model-1",
+        title: "Legal Ko LoRA",
         ownerLabel: "Alice",
         baseModel: "Qwen/Qwen3-0.6B",
         trainingDatasetCount: 1,

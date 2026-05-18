@@ -87,7 +87,7 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
               {model.trainingMethod} model
             </p>
             <h2 className="mt-2 break-words font-h1 text-[clamp(2.25rem,4vw,3.75rem)] leading-[1.05] text-on-surface">
-              {model.id}
+              {model.title}
             </h2>
             <p className="mt-3 font-body text-body-md text-on-surface-variant">
               by <span className="text-on-surface">{model.ownerLabel}</span>

@@ -34,6 +34,7 @@ MAX_SEQ_LENGTH=128
 GRAD_ACCUM=8
 LEARNING_RATE=0.00005
 SKIP_REGISTER=true
+MODEL_TITLE=Gemma 4 E2B FFT
 MODEL_POINT_COST=100
 ```
 
@@ -45,6 +46,7 @@ docker run --rm --gpus all \
   -e HF_TOKEN="$HF_TOKEN" \
   -e DATASET_IDS="legal-ko" \
   -e OUTPUT_MODEL_REPO="your-org/your-gemma4-e2b-fft" \
+  -e MODEL_TITLE="Gemma 4 E2B FFT" \
   -e BASE_MODEL="google/gemma-4-E2B" \
   -e TRAIN_COMMAND="train-gemma4-e2b-full" \
   -e MAX_SEQ_LENGTH="128" \
