@@ -95,6 +95,10 @@ NODE
 install_python_deps() {
   # Colab ships a CUDA-matched torch/torchvision/torchaudio stack. Upgrading
   # torch here can pull a different CUDA toolkit and break the runtime.
+  # Some Colab images include an old optional torchao package. Recent peft
+  # detects it and fails unless torchao is >0.16, so remove it instead of
+  # upgrading CUDA-adjacent packages.
+  "${PYTHON_BIN}" -m pip uninstall -y -q torchao || true
   "${PYTHON_BIN}" -m pip install -q -U \
     transformers \
     peft \

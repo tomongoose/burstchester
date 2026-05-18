@@ -33,7 +33,7 @@ must have access to that model.
 Training notebooks use `DATASET_IDS` in the first settings cell.
 
 ```python
-DATASET_IDS = "legal-ko,legal-briefing-v1,customer-support-ko-en-v1"
+DATASET_IDS = "a2492509-d5ea-4234-9197-cd7fdebbf801,legal-ko"
 ```
 
 The default value uses currently active sample datasets. You can replace it with
