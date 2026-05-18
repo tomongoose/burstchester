@@ -34,7 +34,8 @@ function DatasetsPageContent() {
   const searchParams = useSearchParams();
   const selectedDatasetId = searchParams.get("dataset") ?? "";
   const selectedModelId = searchParams.get("model") ?? "";
-  const initialAsset = searchParams.get("asset") === "models" ? "models" : "datasets";
+  const routeAsset = searchParams.get("asset");
+  const initialAsset = routeAsset === "models" ? "models" : "datasets";
   const [activeAsset, setActiveAsset] = useState<ExploreAsset>(initialAsset);
   const [filter, setFilter] = useState<SearchFilter>(SearchFilter.create({}));
   const [modelFilter, setModelFilter] = useState<ModelSearchFilter>(
@@ -48,6 +49,16 @@ function DatasetsPageContent() {
   const { models, loading: modelsLoading } = useModelSearch(modelFilter, "newest");
   const detailRef = useRef<HTMLDivElement | null>(null);
   const modelDetailRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (selectedDatasetId) {
+      setActiveAsset("datasets");
+      return;
+    }
+    if (selectedModelId || routeAsset === "models") {
+      setActiveAsset("models");
+    }
+  }, [routeAsset, selectedDatasetId, selectedModelId]);
 
   useEffect(() => {
     if (!selectedDatasetId) return;
