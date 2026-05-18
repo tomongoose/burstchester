@@ -6,6 +6,7 @@ import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import { resolveDatasetBackendBaseUrl } from "@/lib/datasets/list-datasets";
 import { buildDatasetJsonLd } from "@/lib/datasets/seo";
 import { fetchDatasetSummaryById } from "@/lib/datasets/get-dataset";
+import { buildProfileHref } from "@/lib/profile/routes";
 import { DownloadButton } from "@/components/datasets/DownloadButton";
 import type { PrepareDownloadResponse } from "@/lib/datasets/download";
 import { requestPrepareDownloadHttp } from "@/lib/datasets/prepare-download-http";
@@ -115,7 +116,17 @@ export function DatasetDetailPanel({
               {summary.title}
             </h2>
             <p className="mt-3 font-body text-body-md text-on-surface-variant">
-              by <span className="text-on-surface">{summary.ownerLabel}</span>
+              by{" "}
+              {summary.ownerLabel === "Anonymous" ? (
+                <span className="text-on-surface">{summary.ownerLabel}</span>
+              ) : (
+                <Link
+                  href={buildProfileHref(summary.ownerUid)}
+                  className="text-on-surface underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary"
+                >
+                  {summary.ownerLabel}
+                </Link>
+              )}
             </p>
           </div>
 
@@ -140,6 +151,8 @@ export function DatasetDetailPanel({
             <Meta label="Downloads" value={String(summary.downloadCount)} />
             <Meta label="Dataset ID" value={summary.id.slice(0, 8)} mono />
           </dl>
+
+          <DatasetPreview samples={summary.previewSamples ?? []} />
         </div>
 
         <aside className="space-y-4 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6">
@@ -153,6 +166,64 @@ export function DatasetDetailPanel({
           </p>
         </aside>
       </div>
+    </section>
+  );
+}
+
+function DatasetPreview({
+  samples,
+}: {
+  readonly samples: NonNullable<DatasetSummary["previewSamples"]>;
+}): JSX.Element {
+  return (
+    <section className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-label text-[11px] uppercase tracking-[0.22em] text-primary">
+            Dataset preview
+          </p>
+          <h3 className="mt-1 font-h3 text-body-lg font-bold text-on-surface">
+            Sample rows
+          </h3>
+        </div>
+        <span className="font-body text-body-sm text-on-surface-variant">
+          {samples.length} shown
+        </span>
+      </div>
+
+      {samples.length === 0 ? (
+        <p className="mt-4 rounded border border-dashed border-outline-variant/30 p-4 font-body text-body-sm text-on-surface-variant">
+          No preview samples are available for this dataset.
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-4">
+          {samples.map((sample, sampleIndex) => (
+            <article
+              key={`sample-${sampleIndex}`}
+              className="rounded border border-outline-variant/20 bg-background/55 p-4"
+            >
+              <p className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant">
+                Row {sampleIndex + 1}
+              </p>
+              <div className="mt-3 grid gap-3">
+                {sample.messages.map((message, messageIndex) => (
+                  <div
+                    key={`${message.role}-${messageIndex}`}
+                    className="grid gap-1 rounded bg-surface-container/70 p-3"
+                  >
+                    <span className="font-label text-[10px] uppercase tracking-[0.2em] text-primary">
+                      {message.role}
+                    </span>
+                    <p className="whitespace-pre-wrap break-words font-body text-body-sm text-on-surface-variant">
+                      {message.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

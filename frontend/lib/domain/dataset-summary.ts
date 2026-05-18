@@ -14,6 +14,16 @@ export interface DatasetRecordLike {
   readonly likeCount: number;
   readonly downloadCount: number;
   readonly status: string;
+  readonly previewSamples?: readonly DatasetPreviewSampleLike[];
+}
+
+export interface DatasetPreviewMessageLike {
+  readonly role: string;
+  readonly content: string;
+}
+
+export interface DatasetPreviewSampleLike {
+  readonly messages: readonly DatasetPreviewMessageLike[];
 }
 
 export interface DatasetSummary {
@@ -28,6 +38,7 @@ export interface DatasetSummary {
   readonly likeCount: number;
   readonly downloadCount: number;
   readonly size: DatasetSize;
+  readonly previewSamples?: readonly DatasetPreviewSampleLike[];
 }
 
 export function buildDatasetSummary(record: DatasetRecordLike): DatasetSummary {
@@ -43,6 +54,20 @@ export function buildDatasetSummary(record: DatasetRecordLike): DatasetSummary {
     likeCount: Math.max(0, record.likeCount),
     downloadCount: Math.max(0, record.downloadCount),
     size: DatasetSize.fromRowCount(Math.max(0, record.rowCount)),
+    previewSamples: Object.freeze(
+      (record.previewSamples ?? []).map((sample) =>
+        Object.freeze({
+          messages: Object.freeze(
+            sample.messages.map((message) =>
+              Object.freeze({
+                role: message.role,
+                content: message.content,
+              }),
+            ),
+          ),
+        }),
+      ),
+    ),
   });
 }
 

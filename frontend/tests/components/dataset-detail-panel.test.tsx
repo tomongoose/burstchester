@@ -13,6 +13,14 @@ vi.mock("@/lib/datasets/get-dataset", () => ({
     likeCount: 0,
     downloadCount: 20,
     size: { category: "tiny" },
+    previewSamples: [
+      {
+        messages: [
+          { role: "user", content: "What is the rule?" },
+          { role: "assistant", content: "Use the statute." },
+        ],
+      },
+    ],
   })),
 }));
 
@@ -38,6 +46,9 @@ describe("DatasetDetailPanel", () => {
     expect(screen.getByTestId("download-button")).toHaveTextContent(
       "gemma4-full-debug-3",
     );
+    expect(screen.getByText("Sample rows")).toBeInTheDocument();
+    expect(screen.getByText("What is the rule?")).toBeInTheDocument();
+    expect(screen.getByText("Use the statute.")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /open colab notebook/i }),
     ).toBeNull();

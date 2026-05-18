@@ -14,6 +14,12 @@ interface DatasetRecordLike {
   readonly likeCount: number;
   readonly downloadCount: number;
   readonly status: string;
+  readonly previewSamples?: readonly {
+    readonly messages: readonly {
+      readonly role: string;
+      readonly content: string;
+    }[];
+  }[];
 }
 
 interface GetDatasetResponse {

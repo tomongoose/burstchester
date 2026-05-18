@@ -19,6 +19,7 @@ import { SiteNav } from "@/components/site-nav/SiteNav";
 import { SiteFooter } from "@/components/site-nav/SiteFooter";
 import { buildProfileCardDataFromAuthUser } from "@/lib/profile/auth-user-profile";
 import { fetchMyProfile, type UserProfile } from "@/lib/profile/profile-api";
+import { getOrCreateAccessTokenUser } from "@/lib/access-tokens/anonymous-token-user";
 
 export default function ProfilePage() {
   return (
@@ -51,20 +52,36 @@ function ProfilePageContent() {
 
     if (status === "loading") return;
 
-    if (!currentUser) {
+    setProfileLoading(true);
+
+    let active = true;
+    const viewerPromise = currentUser
+      ? Promise.resolve(currentUser)
+      : viewedUid
+        ? getOrCreateAccessTokenUser()
+        : Promise.resolve(null);
+
+    if (!currentUser && !viewedUid) {
       setProfile(null);
       setProfileLoading(false);
       return;
     }
 
-    const fallback = buildProfileCardDataFromAuthUser(currentUser);
+    const fallback = currentUser
+      ? buildProfileCardDataFromAuthUser(currentUser)
+      : createPublicProfileFallback(viewedUid);
     setProfile(fallback);
-    setProfileLoading(true);
 
-    let active = true;
-    void fetchMyProfile({ user: currentUser, uid: viewedUid || undefined })
+    void viewerPromise
+      .then((viewer) => {
+        if (!viewer) return null;
+        return fetchMyProfile({
+          user: viewer as { uid: string; getIdToken: () => Promise<string> },
+          uid: viewedUid || undefined,
+        });
+      })
       .then((loaded) => {
-        if (active) setProfile(toProfileCardData(loaded, fallback));
+        if (active && loaded) setProfile(toProfileCardData(loaded, fallback));
       })
       .catch((caught) => {
         if (!active) return;
@@ -81,7 +98,7 @@ function ProfilePageContent() {
   }, [currentUser, status, viewedUid]);
 
   useEffect(() => {
-    if (loading || !currentUser || !profile?.uid) return;
+    if (loading || !profile?.uid) return;
 
     let active = true;
     void Promise.resolve()
@@ -117,7 +134,7 @@ function ProfilePageContent() {
     return () => {
       active = false;
     };
-  }, [currentUser, loading, profile?.uid]);
+  }, [loading, profile?.uid]);
 
   const isOwnProfile = Boolean(profile && currentUser && profile.uid === currentUser.uid);
 
@@ -127,7 +144,7 @@ function ProfilePageContent() {
         <ProfileSkeleton />
       ) : viewedUid && !profile ? (
         <ProfileUnavailable error={error} />
-      ) : !profile || !currentUser ? (
+      ) : !profile || (!viewedUid && !currentUser) ? (
         <SignedOutPrompt />
       ) : !isOwnProfile ? (
         <div className="grid gap-lg">
@@ -157,7 +174,7 @@ function ProfilePageContent() {
               editable
               onEdit={() => setEditing(true)}
             />
-            {editing ? (
+            {editing && currentUser ? (
               <ProfileEditor
                 user={currentUser}
                 profile={toUserProfile(profile)}
@@ -184,6 +201,21 @@ function ProfilePageContent() {
       )}
     </ProfilePageShell>
   );
+}
+
+function createPublicProfileFallback(uid: string): ProfileCardData {
+  return {
+    uid,
+    displayName: "Profile",
+    email: "",
+    photoURL: null,
+    description: "",
+    workplace: "",
+    uploadCount: 0,
+    downloadCount: 0,
+    points: 0,
+    reputation: 0,
+  };
 }
 
 function ProfileHero({
