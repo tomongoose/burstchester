@@ -109,10 +109,11 @@ node cli/src/cli.mjs download-model \
 ## Register A Model
 
 After uploading training output to Hugging Face, register it in the Burstchester model registry.
+The registry accepts a Hugging Face repository URL, so a direct file URL is not required.
 
 ```bash
 node cli/src/cli.mjs register-model \
-  --huggingface-url https://huggingface.co/mk48/my-model/resolve/main/model.safetensors \
+  --huggingface-url https://huggingface.co/mk48/my-model \
   --title "Gemma 4 E2B Legal Ko FFT" \
   --base-model google/gemma-4-E2B \
   --dataset-id legal-ko \
@@ -124,8 +125,9 @@ Pass multiple dataset IDs from a file:
 
 ```bash
 node cli/src/cli.mjs register-model \
-  --huggingface-url https://huggingface.co/mk48/my-model/resolve/main/model.safetensors \
+  --huggingface-url https://huggingface.co/mk48/my-model \
   --dataset-file ./dataset-ids.txt \
+  --title "Gemma Legal Adapter" \
   --training-method lora
 ```
 

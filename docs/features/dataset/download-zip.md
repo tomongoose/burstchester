@@ -66,7 +66,7 @@ const readme = buildReadmeTemplate(dataset, {
 
 ## Frontend Wiring (download-button-wiring plan)
 
-`/datasets/[id]` 페이지에서 다운로드 버튼이 backend `prepareDownload` Callable과 연결됨.
+`/datasets?dataset=<datasetId>#dataset-detail` 상세 패널에서 다운로드 버튼이 backend `prepareDownload` Callable과 연결됨.
 
 ### 흐름
 ```
@@ -82,7 +82,7 @@ const readme = buildReadmeTemplate(dataset, {
 ### 모듈 (frontend)
 - `frontend/lib/datasets/download.ts` — `callPrepareDownload`, `triggerBrowserDownload` (deps 주입 형태)
 - `frontend/components/datasets/DownloadButton.tsx` — 3 상태 (idle/pending/error) + retry
-- `frontend/app/datasets/[id]/page.tsx` — `httpsCallable` + `window.location.assign` 어댑터 주입
+- `frontend/components/datasets/DatasetDetailPanel.tsx` — `httpsCallable` + `window.location.assign` 어댑터 주입
 
 ### 상태 전이
 - `idle` → 클릭 → `pending` → 응답 성공 → `idle` (브라우저가 다운로드 시작)

@@ -14,11 +14,23 @@
 | `onLikeWrite` | Firestore `datasets/{id}/likes/{uid}` 문서 쓰기 | 좋아요 수와 작성자 평판 갱신 |
 | `onReportWrite` | Firestore `datasets/{id}/reports/{uid}` 문서 쓰기 | 신고 수, 상태, 작성자 평판 갱신 |
 | `prepareDatasetDownload` | HTTPS `onRequest` | CLI/외부 클라이언트용 데이터셋 ZIP 준비 후 JSON 응답 |
+| `listDatasets` | HTTPS `onRequest` | 데이터셋 탐색용 목록 조회 |
+| `getDataset` | HTTPS `onRequest` | 데이터셋 상세 조회 |
+| `listTrendingDatasets` | HTTPS `onRequest` | 인기 데이터셋 목록 조회 |
+| `refreshTrendingDatasets` | HTTPS `onRequest` | 인기 데이터셋 캐시 갱신 |
+| `listModels` | HTTPS `onRequest` | 모델 탐색용 목록 조회 |
+| `getModel` | HTTPS `onRequest` | 모델 상세 조회 |
 | `cliGoogleAuth` | HTTPS `onRequest` | CLI용 Google device-flow 시작/폴링 프록시 |
 | `debugUploadDataset` | HTTPS `onRequest` | CLI 디버그용 JSONL 테스트 데이터 업로드 |
 | `upsertCliProfile` | HTTPS `onRequest` | CLI용 사용자 프로필 생성/병합 |
+| `registerModelHttp` | HTTPS `onRequest` | CLI/외부 클라이언트용 모델 등록 |
+| `issueAccessToken` | HTTPS `onRequest` | CLI 액세스 토큰 발급 |
+| `listAccessTokens` | HTTPS `onRequest` | CLI 액세스 토큰 목록 조회 |
+| `revokeAccessToken` | HTTPS `onRequest` | CLI 액세스 토큰 폐기 |
 | `prepareDownload` | Callable `onCall` | 다운로드용 ZIP 생성 또는 캐시 재사용 후 서명 URL 반환 |
 | `registerModel` | Callable `onCall` | Hugging Face 모델 URL 기반 모델 레지스트리 등록 |
+| `recordModelDownload` | Callable `onCall` | 모델 다운로드/이동 이벤트 기록 |
+| `updateAssetPointCost` | Callable `onCall` | 데이터셋/모델 포인트 비용 수정 |
 
 ## 함수 상세
 
@@ -349,31 +361,37 @@ CLI에서 Google client secret을 직접 들고 있지 않도록, 백엔드가 G
 }
 ```
 
-### `registerModel`
+### `registerModel` / `registerModelHttp`
 
-인증된 사용자만 호출할 수 있는 Callable 함수다.
+인증된 사용자가 학습 완료 모델을 Burstchester 모델 레지스트리에 등록하는 함수다.
+웹 클라이언트는 Callable `registerModel`을 사용하고, CLI/외부 클라이언트는 HTTP `registerModelHttp`를 사용한다.
 
 입력 필드:
 
 - `huggingFaceUrl` 필수
+- `title` 선택
 - `baseModel` 선택
-- `trainingDatasets` 선택
+- `trainingDatasets` 또는 `datasetId`/`datasetIds` 계열 선택
 - `trainingMethod` 선택
+- `pointCost` 선택
 - `ollamaPullUrl` 선택
 
 검증 규칙:
 
 - `huggingFaceUrl`은 유효한 URL이어야 한다.
 - 도메인은 `huggingface.co` 또는 `hf.co` 만 허용한다.
-- 경로에 `/resolve/` 또는 `/download/` 가 포함되어야 한다.
+- Hugging Face repo URL과 파일 다운로드 URL을 모두 허용한다.
+- `trainingDatasets`는 데이터셋 ID 배열이어야 하며 trim 후 중복 제거한다.
 
 저장 규칙:
 
 - 문서 위치: `models/{modelId}`
 - `modelId`는 `model-${randomUUID()}`
+- `title`은 표시 이름으로 저장하며, 누락된 기존 데이터는 프론트엔드에서 `Untitled`로 표시한다.
 - `trainingMethod`는 `lora`, `full`만 그대로 유지하고 나머지는 `qlora`
-- `trainingDatasets`는 trim 후 중복 제거
+- `pointCost`는 모델 다운로드/사용 비용으로 저장한다.
 - `evalReports`는 빈 배열로 시작
+- 등록에 사용한 학습 데이터셋이나 베이스 모델이 아직 paid 상태가 아니면, 등록 과정에서 포인트 구매 기록을 먼저 생성한다.
 
 응답:
 

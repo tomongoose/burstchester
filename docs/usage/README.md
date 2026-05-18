@@ -7,7 +7,6 @@ This directory documents the Burstchester CLI and training workflows.
 1. [`cli-quickstart.md`](./cli-quickstart.md) - installation, authentication, and basic commands
 2. [`cli-datasets.md`](./cli-datasets.md) - dataset list management, download, and upload
 3. [`cli-training.md`](./cli-training.md) - local and Colab training, plus model registration
-4. [`vertex-training.md`](./vertex-training.md) - Docker-based remote training on Vertex AI
 
 ## Where To Run CLI Commands
 

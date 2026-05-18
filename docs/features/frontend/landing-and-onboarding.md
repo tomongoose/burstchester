@@ -16,16 +16,17 @@
 | `/terms` | static | 이용 약관 (placeholder, 법률 검토 전) |
 | `/privacy` | static | 개인정보처리방침 (placeholder) |
 
-`npm run build` 결과 8 routes (이전 6 → +2 신규):
+현재 `frontend/app` 기준 주요 routes:
 ```
 ┌ ○ /
+├ ○ /access-token
 ├ ○ /_not-found
 ├ ○ /datasets
-├ ƒ /datasets/[id]
 ├ ○ /login
-├ ○ /privacy           (신규)
+├ ○ /points
+├ ○ /privacy
 ├ ○ /profile
-└ ○ /terms             (신규)
+└ ○ /terms
 ```
 
 ---

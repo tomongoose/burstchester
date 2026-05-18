@@ -10,7 +10,7 @@ LLM 사용자가 만든 좋은 대화/생성물을 데이터셋으로 공유하�
 5. [`04-roadmap.md`](./04-roadmap.md) — Phase 0~4+ 로드맵 + Firebase 졸업 분기점
 6. [`05-vision-provenance.md`](./05-vision-provenance.md) — **MVP와 분리된 장기 비전**: 집단 큐레이션 / 출처 그래프 / 능력 온톨로지 / 증류 모델 대비 차별화
 7. [`plans/README.md`](./plans/README.md) — **`/tdd-plan` × `/go` 실행 백로그**. MVP를 8개 feature 단위로 분할 (포집 메커니즘은 별도 spec 대기 중이라 제외)
-8. [`usage/README.md`](./usage/README.md) — CLI와 Vertex AI 학습 사용법
+8. [`usage/README.md`](./usage/README.md) — CLI, Colab 학습, 모델 등록 사용법
 
 ## 한눈에
 - **MVP는 Firebase + Next.js로 충분** — 비용 월 $5 이하 추정 (MAU 1,000 기준)

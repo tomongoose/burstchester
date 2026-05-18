@@ -14,7 +14,7 @@ Burstchester의 구현된 기능 카탈로그. 도메인별로 분류.
 | admin | Backend 단위 테스트 runner 단일화 (vitest) | [`admin/test-runner.md`](./admin/test-runner.md) | ✅ 인프라 부채 정리 |
 | frontend | 랜딩 페이지 + 약관/개인정보 + 시드 쇼케이스 | [`frontend/landing-and-onboarding.md`](./frontend/landing-and-onboarding.md) | ✅ C2 MVP |
 | engagement | 좋아요/신고 카운터 + flagged 전이 | [`engagement/like-and-report.md`](./engagement/like-and-report.md) | ✅ B6 (Hardened, 잠재 버그 수정) |
-| model-registry | 학습 모델 등록 + HF URL 검증 | [`model-registry/registration.md`](./model-registry/registration.md) | ⚠️ D3 부분 (역참조 미완) |
+| model-registry | 학습 모델 등록 + HF URL 검증 + 모델 탐색/상세 | [`model-registry/registration.md`](./model-registry/registration.md) | ✅ D3 MVP (역참조/평가 리포트 미완) |
 
 ## 진행 중 / 예정 (plans/ 참조)
 
