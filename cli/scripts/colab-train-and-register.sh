@@ -189,12 +189,22 @@ main() {
   node src/cli.mjs "${train_args[@]}" | tee "${WORKSPACE}.train-result.json"
 
   local output_dir
-  output_dir="$(node --input-type=module - "${WORKSPACE}.train-result.json" <<'NODE'
+output_dir="$(node --input-type=module - "${WORKSPACE}.train-result.json" <<'NODE'
 import { readFileSync } from "node:fs";
 const text = readFileSync(process.argv[2], "utf8");
-const match = text.match(/\{[\s\S]*\}\s*$/);
-if (!match) throw new Error("Could not parse training result JSON.");
-const payload = JSON.parse(match[0]);
+let payload = null;
+for (let index = text.lastIndexOf("{"); index >= 0; index = text.lastIndexOf("{", index - 1)) {
+  try {
+    const candidate = JSON.parse(text.slice(index).trim());
+    if (candidate && typeof candidate === "object" && typeof candidate.outputDir === "string") {
+      payload = candidate;
+      break;
+    }
+  } catch {
+    // Trainer progress logs can contain Python dict output like {'loss': ...}.
+  }
+}
+if (!payload) throw new Error("Could not parse training result JSON with outputDir.");
 process.stdout.write(payload.outputDir || `${process.argv[2]}.output`);
 NODE
 )"
