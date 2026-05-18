@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, type JSX } from "react";
+import type { DatasetSummary } from "@/lib/domain/dataset-summary";
 import type { ModelSummary } from "@/lib/domain/model-summary";
+import { buildDatasetDetailHref } from "@/lib/datasets/routes";
+import { fetchDatasetSummaryById } from "@/lib/datasets/get-dataset";
 import { fetchModelSummaryById } from "@/lib/models/get-model";
 import { toHuggingFaceRepoUrl } from "@/lib/models/huggingface-url";
 import { HuggingFaceRepoActions } from "./HuggingFaceRepoActions";
@@ -15,9 +18,11 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
   const [state, setState] = useState<{
     readonly resolvedModelId: string | null;
     readonly model: ModelSummary | null;
+    readonly datasets: readonly DatasetSummary[];
   }>({
     resolvedModelId: null,
     model: null,
+    datasets: [],
   });
 
   useEffect(() => {
@@ -25,13 +30,21 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
     let cancelled = false;
 
     void fetchModelSummaryById(modelId)
-      .then((next) => {
+      .then(async (next) => {
         if (cancelled) return;
-        setState({ resolvedModelId: modelId, model: next });
+        const datasets = next
+          ? await Promise.all(next.trainingDatasets.map((id) => fetchDatasetSummaryById(id)))
+          : [];
+        if (cancelled) return;
+        setState({
+          resolvedModelId: modelId,
+          model: next,
+          datasets: datasets.filter((dataset): dataset is DatasetSummary => Boolean(dataset)),
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setState({ resolvedModelId: modelId, model: null });
+        setState({ resolvedModelId: modelId, model: null, datasets: [] });
       });
 
     return () => {
@@ -43,6 +56,7 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
 
   const loaded = state.resolvedModelId === modelId;
   const model = loaded ? state.model : null;
+  const datasets = loaded ? state.datasets : [];
   const huggingFaceRepoUrl = model ? toHuggingFaceRepoUrl(model.huggingFaceUrl) : "";
 
   if (!loaded) {
@@ -100,6 +114,7 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
             <Meta label="Price" value={`${model.pointCost} pts`} />
             <Meta label="Updated" value={formatDate(model.updatedAt)} />
           </dl>
+          <TrainingDatasetLinks model={model} datasets={datasets} />
         </div>
 
         <aside className="space-y-4 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6">
@@ -113,6 +128,42 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
             Model access records point usage before external download.
           </p>
         </aside>
+      </div>
+    </section>
+  );
+}
+
+function TrainingDatasetLinks({
+  model,
+  datasets,
+}: {
+  readonly model: ModelSummary;
+  readonly datasets: readonly DatasetSummary[];
+}): JSX.Element {
+  if (model.trainingDatasets.length === 0) {
+    return <></>;
+  }
+
+  const titlesById = new Map(datasets.map((dataset) => [dataset.id, dataset.title]));
+
+  return (
+    <section className="rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-5">
+      <h3 className="font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant">
+        Training datasets
+      </h3>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {model.trainingDatasets.map((datasetId) => {
+          const title = titlesById.get(datasetId) ?? datasetId;
+          return (
+            <Link
+              key={datasetId}
+              href={buildDatasetDetailHref(datasetId)}
+              className="rounded border border-outline-variant/20 bg-surface-container px-3 py-2 font-body text-sm text-on-surface transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              {title}
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

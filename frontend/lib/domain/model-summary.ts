@@ -22,6 +22,7 @@ export interface ModelSummary {
   readonly ownerName: string;
   readonly ownerLabel: string;
   readonly baseModel: string;
+  readonly trainingDatasets: readonly string[];
   readonly trainingDatasetCount: number;
   readonly trainingMethod: ModelTrainingMethod;
   readonly huggingFaceUrl: string;
@@ -38,6 +39,7 @@ export function buildModelSummary(record: ModelRecordLike): ModelSummary {
     ownerName: record.ownerName,
     ownerLabel: buildOwnerLabel(record.ownerUid, record.ownerName),
     baseModel: record.baseModel,
+    trainingDatasets: Object.freeze([...record.trainingDatasets]),
     trainingDatasetCount: Math.max(0, record.trainingDatasets.length),
     trainingMethod: record.trainingMethod,
     huggingFaceUrl: record.huggingFaceUrl,

@@ -280,6 +280,7 @@ NODE
   [[ -n "${MODEL_POINT_COST:-}" ]] && register_args+=(--point-cost "${MODEL_POINT_COST}")
   [[ -n "${OLLAMA_PULL_URL:-}" ]] && register_args+=(--ollama-pull-url "${OLLAMA_PULL_URL}")
 
+  echo "Registering model title: ${model_title}"
   node src/cli.mjs "${register_args[@]}" | tee "${WORKSPACE}.register-result.json"
 }
 
