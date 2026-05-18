@@ -43,7 +43,7 @@ export function validateHuggingFaceDownloadUrl(url: string): { ok: true } | { ok
   } catch {
     return {
       ok: false,
-      reason: "Hugging Face download URL must be a valid URL.",
+      reason: "Hugging Face URL must be a valid URL.",
     };
   }
 
@@ -52,15 +52,16 @@ export function validateHuggingFaceDownloadUrl(url: string): { ok: true } | { ok
   if (!isHuggingFace) {
     return {
       ok: false,
-      reason: "Hugging Face download URL must use a Hugging Face domain.",
+      reason: "Hugging Face URL must use a Hugging Face domain.",
     };
   }
 
   const path = parsed.pathname.toLowerCase();
-  if (!path.includes("/resolve/") && !path.includes("/download/")) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length < 2) {
     return {
       ok: false,
-      reason: "Hugging Face download URL must point to a downloadable file.",
+      reason: "Hugging Face URL must point to a model repository or downloadable file.",
     };
   }
 

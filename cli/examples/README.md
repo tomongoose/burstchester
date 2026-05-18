@@ -42,7 +42,7 @@ or new lines.
 
 ## Output Model Repos
 
-For training notebooks, set `OUTPUT_MODEL_REPO` to a Hugging Face repository that your `HF_TOKEN` can write to.
+For training notebooks, set `OUTPUT_MODEL_REPO` to a Hugging Face repository that your `HF_TOKEN` can write to. If the value starts with `hf-user/`, the notebook replaces `hf-user` with the username resolved from `HF_TOKEN`.
 
 ```python
 OUTPUT_MODEL_REPO = "hf-user/my-trained-model"

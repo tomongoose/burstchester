@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState, type JSX } from "react";
 import type { ModelSummary } from "@/lib/domain/model-summary";
 import { fetchModelSummaryById } from "@/lib/models/get-model";
+import { toHuggingFaceRepoUrl } from "@/lib/models/huggingface-url";
+import { HuggingFaceRepoActions } from "./HuggingFaceRepoActions";
 
 interface ModelDetailPanelProps {
   readonly modelId: string;
@@ -41,6 +43,7 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
 
   const loaded = state.resolvedModelId === modelId;
   const model = loaded ? state.model : null;
+  const huggingFaceRepoUrl = model ? toHuggingFaceRepoUrl(model.huggingFaceUrl) : "";
 
   if (!loaded) {
     return (
@@ -100,14 +103,7 @@ export function ModelDetailPanel({ modelId }: ModelDetailPanelProps): JSX.Elemen
         </div>
 
         <aside className="space-y-4 rounded-lg border border-outline-variant/20 bg-surface-container-lowest p-6">
-          <a
-            href={model.huggingFaceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block rounded-lg bg-primary px-md py-3 text-center font-body text-body-sm font-bold text-on-primary transition-opacity hover:opacity-90"
-          >
-            Open Hugging Face
-          </a>
+          <HuggingFaceRepoActions repoUrl={huggingFaceRepoUrl} />
           {model.ollamaPullUrl ? (
             <code className="block rounded-lg border border-outline-variant/20 bg-background px-sm py-2 font-mono text-xs text-on-surface-variant">
               {model.ollamaPullUrl}

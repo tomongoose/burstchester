@@ -17,6 +17,14 @@ describe("validateHuggingFaceDownloadUrl", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts hugging face repository URLs", () => {
+    const result = validateHuggingFaceDownloadUrl(
+      "https://huggingface.co/burstchester/legal-ko-qlora",
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
   it("rejects non-huggingface domains", () => {
     const result = validateHuggingFaceDownloadUrl("https://example.com/model.gguf");
 

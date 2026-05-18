@@ -128,6 +128,37 @@ print(f"https://huggingface.co/{repo}")
 PY
 }
 
+select_output_model_file() {
+  local output_dir="$1"
+  if [[ -n "${OUTPUT_MODEL_FILE:-}" ]]; then
+    printf '%s\n' "${OUTPUT_MODEL_FILE}"
+    return 0
+  fi
+
+  local candidates=(
+    "adapter_model.safetensors"
+    "model.safetensors"
+    "pytorch_model.bin"
+  )
+  local candidate
+  for candidate in "${candidates[@]}"; do
+    if [[ -f "${output_dir}/${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+
+  local shard
+  shard="$(find "${output_dir}" -maxdepth 1 -type f -name 'model-*.safetensors' | sort | head -n 1)"
+  if [[ -n "${shard}" ]]; then
+    basename "${shard}"
+    return 0
+  fi
+
+  echo "Could not find a downloadable model file in ${output_dir}. Set OUTPUT_MODEL_FILE explicitly." >&2
+  return 2
+}
+
 main() {
   if [[ -z "${BURSTCHESTER_ACCESS_TOKEN:-}" && -z "${BURSTCHESTER_FIREBASE_ID_TOKEN:-}" ]]; then
     echo "Missing required env: BURSTCHESTER_ACCESS_TOKEN or BURSTCHESTER_FIREBASE_ID_TOKEN" >&2
@@ -218,9 +249,9 @@ NODE
     require_env OUTPUT_MODEL_REPO
     upload_output_model "${output_dir}" "${OUTPUT_MODEL_REPO}" | tee "${WORKSPACE}.hf-upload.txt"
     if [[ -n "${OUTPUT_MODEL_FILE:-}" ]]; then
-      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/${OUTPUT_MODEL_FILE}"
-    elif [[ "${registered_training_method}" == "lora" || "${registered_training_method}" == "qlora" ]]; then
-      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/adapter_model.safetensors"
+      local output_model_file
+      output_model_file="$(select_output_model_file "${output_dir}")"
+      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/${output_model_file}"
     else
       model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}"
     fi

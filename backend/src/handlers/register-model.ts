@@ -3,12 +3,15 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import type { Request, Response } from "express";
 import { onRequest } from "firebase-functions/v2/https";
 import { buildModelRecord } from "../core/model-registry";
+import type { DatasetRecord } from "../core/datasets";
 import type { HandlerDeps } from "./deps";
 import { verifyBearerAuth } from "./bearer-auth";
 import { readBearerToken, readStringField } from "./_request-helpers";
+import { recordDatasetPurchaseIfNeeded } from "./prepare-dataset-download";
+import { recordModelDownload } from "./record-model-download";
 
 export function createRegisterModel(
-  deps: Pick<HandlerDeps, "database" | "db" | "clock" | "generateId">,
+  deps: Pick<HandlerDeps, "database" | "db" | "clock" | "generateId" | "fieldValue">,
 ) {
   return onCall({ region: "us-central1" }, async (request) => {
     if (!request.auth?.uid) {
@@ -94,7 +97,7 @@ export async function handleRegisterModelHttp(
 }
 
 async function registerModelForUser(
-  deps: Pick<HandlerDeps, "database" | "db" | "clock" | "generateId">,
+  deps: Pick<HandlerDeps, "database" | "db" | "clock" | "generateId" | "fieldValue">,
   input: {
     ownerUid: string;
     huggingFaceUrl: string;
@@ -105,6 +108,7 @@ async function registerModelForUser(
     pointCost?: unknown;
   },
 ) {
+  await settleTrainingAssetPurchases(deps, input);
   const record = buildModelRecord(
     input,
     () => `model-${deps.generateId()}`,
@@ -114,6 +118,50 @@ async function registerModelForUser(
 
   await deps.db.doc(`models/${record.id}`).set(record);
   return record;
+}
+
+async function settleTrainingAssetPurchases(
+  deps: Pick<HandlerDeps, "database" | "db" | "fieldValue">,
+  input: {
+    ownerUid: string;
+    baseModel?: string;
+    trainingDatasets?: readonly string[];
+  },
+): Promise<void> {
+  const paid = await readPaidTrainingAssets(deps, input.ownerUid);
+  const paidDatasetIds = new Set(paid.paidDatasetIds);
+  const datasetIds = Array.from(
+    new Set((input.trainingDatasets ?? []).map((value) => value.trim()).filter(Boolean)),
+  );
+
+  for (const datasetId of datasetIds) {
+    if (paidDatasetIds.has(datasetId)) continue;
+    const snapshot = await deps.db.doc(`datasets/${datasetId}`).get();
+    if (!snapshot.exists) {
+      throw new Error(`Training dataset not found: ${datasetId}`);
+    }
+    const dataset = snapshot.data() as Pick<DatasetRecord, "id" | "ownerUid" | "title" | "pointCost">;
+    await recordDatasetPurchaseIfNeeded(
+      deps,
+      input.ownerUid,
+      {
+        id: datasetId,
+        ownerUid: String(dataset.ownerUid ?? ""),
+        title: String(dataset.title ?? datasetId),
+        pointCost: dataset.pointCost,
+      },
+      Date.now(),
+    );
+  }
+
+  const baseModel = input.baseModel?.trim();
+  if (baseModel && baseModel !== "unknown" && !paid.paidModelNames.includes(baseModel)) {
+    await recordModelDownload(deps, {
+      uid: input.ownerUid,
+      modelName: baseModel,
+      sourceUrl: `https://huggingface.co/${baseModel}`,
+    });
+  }
 }
 
 async function readPaidTrainingAssets(

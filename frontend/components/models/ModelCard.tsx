@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import type { ModelSummary } from "@/lib/domain/model-summary";
 import { buildProfileHref } from "@/lib/profile/routes";
 import { buildModelDetailHref } from "@/lib/models/routes";
+import { toHuggingFaceRepoUrl } from "@/lib/models/huggingface-url";
+import { HuggingFaceRepoActions } from "./HuggingFaceRepoActions";
 
 interface ModelCardProps {
   readonly model: ModelSummary;
@@ -14,6 +16,7 @@ interface ModelCardProps {
 export function ModelCard({ model }: ModelCardProps): JSX.Element {
   const router = useRouter();
   const detailHref = buildModelDetailHref(model.id);
+  const huggingFaceRepoUrl = toHuggingFaceRepoUrl(model.huggingFaceUrl);
 
   function openDetail(): void {
     router.push(detailHref);
@@ -76,15 +79,7 @@ export function ModelCard({ model }: ModelCardProps): JSX.Element {
           </div>
         </dl>
         <div className="mt-auto flex flex-col gap-sm border-t border-outline-variant/20 pt-md">
-          <a
-            href={model.huggingFaceUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(event) => event.stopPropagation()}
-            className="font-label text-[11px] uppercase tracking-[0.22em] text-primary hover:underline"
-          >
-            Hugging Face
-          </a>
+          <HuggingFaceRepoActions repoUrl={huggingFaceRepoUrl} compact />
           {model.ollamaPullUrl ? (
             <code className="rounded-lg border border-outline-variant/20 bg-background px-sm py-2 font-mono text-xs text-on-surface-variant">
               {model.ollamaPullUrl}
