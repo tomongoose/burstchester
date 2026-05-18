@@ -17,6 +17,22 @@ class _CudaAvailable:
     def is_available():
         return True
 
+    @staticmethod
+    def current_device():
+        return 0
+
+    @staticmethod
+    def get_device_name(_device):
+        return "Test GPU"
+
+    @staticmethod
+    def mem_get_info(_device):
+        return (20 * 1024**3, 40 * 1024**3)
+
+    @staticmethod
+    def is_bf16_supported():
+        return True
+
 
 class _CudaUnavailable:
     @staticmethod
@@ -27,6 +43,8 @@ class _CudaUnavailable:
 class _TorchWithCuda:
     float16 = "float16"
     float32 = "float32"
+    __version__ = "2.10.0"
+    version = SimpleNamespace(cuda="12.8")
     cuda = _CudaAvailable()
 
 
@@ -86,47 +104,91 @@ class Gemma4WrapperTests(unittest.TestCase):
         self.assertEqual(captured["modelRepo"], "google/gemma-3-4b-it")
         self.assertEqual(captured["trainingMethod"], "full")
 
-    def test_gemma4_full_load_kwargs_use_bfloat16_when_supported(self):
-        class _Bf16Cuda:
+    def test_gemma4_fft_requires_cuda(self):
+        with self.assertRaises(SystemExit):
+            train_gemma4_full.require_cuda_for_gemma4_fft(_TorchWithoutCuda())
+
+    def test_gemma4_fft_rejects_t4_class_fp16_gpu(self):
+        class _T4Cuda(_CudaAvailable):
             @staticmethod
-            def is_available():
-                return True
+            def mem_get_info(_device):
+                return (14 * 1024**3, 14 * 1024**3)
 
             @staticmethod
             def is_bf16_supported():
-                return True
+                return False
 
         class _Torch:
-            bfloat16 = "bfloat16"
-            float16 = "float16"
-            float32 = "float32"
-            cuda = _Bf16Cuda()
+            cuda = _T4Cuda()
 
-        self.assertEqual(
-            train_gemma4_full.resolve_gemma4_model_load_kwargs(_Torch()),
-            {
-                "device_map": "auto",
-                "torch_dtype": "bfloat16",
-            },
+        with self.assertRaises(SystemExit):
+            train_gemma4_full.require_supported_fft_gpu(_Torch())
+
+    def test_gemma4_fft_accepts_bf16_high_memory_gpu(self):
+        train_gemma4_full.require_supported_fft_gpu(_TorchWithCuda())
+
+    def test_gemma4_unsloth_loader_enables_full_finetuning(self):
+        class _FastLanguageModel:
+            calls = []
+
+            @classmethod
+            def from_pretrained(cls, **kwargs):
+                cls.calls.append(kwargs)
+                return {"model": True}, {"tokenizer": True}
+
+        model, tokenizer = train_gemma4_full.load_unsloth_gemma4_model(
+            _FastLanguageModel,
+            model_repo="google/gemma-4-E2B",
+            max_seq_length=128,
         )
 
+        self.assertTrue(model["model"])
+        self.assertTrue(tokenizer["tokenizer"])
+        self.assertEqual(_FastLanguageModel.calls[0]["model_name"], "google/gemma-4-E2B")
+        self.assertEqual(_FastLanguageModel.calls[0]["max_seq_length"], 128)
+        self.assertFalse(_FastLanguageModel.calls[0]["load_in_4bit"])
+        self.assertTrue(_FastLanguageModel.calls[0]["full_finetuning"])
+        self.assertEqual(_FastLanguageModel.calls[0]["use_gradient_checkpointing"], "unsloth")
+
+    def test_gemma4_unsloth_loader_falls_back_without_checkpointing_arg(self):
+        class _FastLanguageModel:
+            calls = []
+
+            @classmethod
+            def from_pretrained(cls, **kwargs):
+                cls.calls.append(kwargs)
+                if "use_gradient_checkpointing" in kwargs:
+                    raise TypeError("unexpected keyword argument")
+                return "model", "tokenizer"
+
+        model, tokenizer = train_gemma4_full.load_unsloth_gemma4_model(
+            _FastLanguageModel,
+            model_repo="google/gemma-4-E2B",
+            max_seq_length=128,
+        )
+
+        self.assertEqual(model, "model")
+        self.assertEqual(tokenizer, "tokenizer")
+        self.assertEqual(len(_FastLanguageModel.calls), 2)
+        self.assertNotIn("use_gradient_checkpointing", _FastLanguageModel.calls[1])
+
     def test_gemma4_text_renderer_uses_processor_chat_template(self):
-        class _Processor:
+        class _Tokenizer:
             def apply_chat_template(self, messages, **kwargs):
                 self.kwargs = kwargs
                 return f"rendered:{messages[0]['content']}"
 
-        processor = _Processor()
+        tokenizer = _Tokenizer()
 
         self.assertEqual(
             train_gemma4_full.render_gemma4_messages_for_text_only(
-                processor,
+                tokenizer,
                 [{"role": "user", "content": "hello"}],
             ),
             "rendered:hello",
         )
-        self.assertFalse(processor.kwargs["add_generation_prompt"])
-        self.assertFalse(processor.kwargs["enable_thinking"])
+        self.assertFalse(tokenizer.kwargs["add_generation_prompt"])
+        self.assertFalse(tokenizer.kwargs["enable_thinking"])
 
 
 class GemmaLoraWrapperTests(unittest.TestCase):
