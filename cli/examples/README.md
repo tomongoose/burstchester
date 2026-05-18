@@ -1,6 +1,10 @@
 # CLI Notebook Examples
 
-This directory contains Jupyter notebooks for running Burstchester CLI workflows in Colab.
+This directory contains Jupyter notebooks for running Burstchester CLI workflows
+in Google Colab. Each notebook clones or updates the CLI repository, loads
+secrets from Colab Secrets, exposes the main settings through a `#@title` form
+cell, and then performs the relevant Burstchester upload, training, or
+registration flow.
 
 ## Notebooks
 
@@ -16,8 +20,13 @@ This directory contains Jupyter notebooks for running Burstchester CLI workflows
 3. Add Colab secrets:
    - `BURSTCHESTER_ACCESS_TOKEN`
    - `HF_TOKEN` for training notebooks that download gated models or upload to Hugging Face
-4. Edit the first `#@title` settings cell.
+4. Edit the first `#@title` settings cell, especially model repo, dataset IDs,
+   output paths, and upload metadata.
 5. Run cells from top to bottom.
+
+Training notebooks install model dependencies through
+`cli/scripts/colab-train-and-register.sh`. If a model is gated, your `HF_TOKEN`
+must have access to that model.
 
 ## Dataset IDs
 
