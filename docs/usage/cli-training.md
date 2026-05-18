@@ -1,10 +1,10 @@
-# CLI 학습과 모델 등록
+# CLI Training And Model Registration
 
-## 로컬 학습 전제조건
+## Local Training Prerequisites
 
-CLI는 Node로 동작하지만 실제 학습은 Python wrapper를 실행한다.
+The CLI itself runs on Node, but the actual training job is executed through a Python wrapper.
 
-필요 패키지는 학습 방식에 따라 다르다.
+Required Python packages depend on the training method.
 
 - `torch`
 - `transformers`
@@ -13,15 +13,15 @@ CLI는 Node로 동작하지만 실제 학습은 Python wrapper를 실행한다.
 - `unsloth`
 - `trl`
 
-Gemma 4 full fine-tuning은 GPU 메모리를 많이 사용한다. Colab T4/L4급 GPU에서는 full fine-tuning이 실패할 수 있다.
+Gemma 4 full fine-tuning requires significant GPU memory. Full fine-tuning may fail on Colab T4/L4-class GPUs.
 
-## Gemma 4 학습 명령
+## Gemma 4 Training Command
 
 ```bash
 node cli/src/cli.mjs train-gemma4-e2b-full --dataset-id legal-ko
 ```
 
-`--dataset-id`를 생략하면 로컬 `dataset-list`에 저장된 전체 목록을 사용한다.
+If `--dataset-id` is omitted, the command uses every dataset ID stored in the local `dataset-list`.
 
 ```bash
 node cli/src/cli.mjs dataset-list add --dataset-id legal-ko
@@ -30,21 +30,21 @@ node cli/src/cli.mjs dataset-list add --dataset-id finance-ko
 node cli/src/cli.mjs train-gemma4-e2b-full
 ```
 
-학습 전 데이터셋 다운로드 가능 여부만 확인:
+Check whether the datasets can be downloaded before starting training:
 
 ```bash
 node cli/src/cli.mjs train-gemma4-e2b-full --preflight-only
 ```
 
-## Gemma 4 E2B full fine-tuning
+## Gemma 4 E2B Full Fine-Tuning
 
 ```bash
 node cli/src/cli.mjs train-gemma4-e2b-full --dataset-id legal-ko
 ```
 
-기본 base model은 `google/gemma-4-E2B`다.
+The default base model is `google/gemma-4-E2B`.
 
-기본 base model을 명시하고 싶을 때:
+To make the base model explicit:
 
 ```bash
 node cli/src/cli.mjs train-gemma4-e2b-full \
@@ -52,29 +52,29 @@ node cli/src/cli.mjs train-gemma4-e2b-full \
   --model-repo google/gemma-4-E2B
 ```
 
-저장된 dataset list 전체를 사용할 때:
+To use every dataset ID stored in the local dataset list:
 
 ```bash
 node cli/src/cli.mjs train-gemma4-e2b-full
 ```
 
-이 명령은 내부적으로 다음을 수행한다.
+This command performs the following steps internally:
 
-1. dataset preflight
-2. dataset ZIP 다운로드
-3. 각 ZIP의 `dataset.jsonl` 병합
-4. `src/python/train_gemma4_e2b_full.py` 실행
-5. `trainingMethod=full` 적용
+1. Run dataset preflight checks
+2. Download each dataset ZIP
+3. Merge each extracted `dataset.jsonl`
+4. Run `src/python/train_gemma4_e2b_full.py`
+5. Apply `trainingMethod=full`
 
-## Gemma 2B IT LoRA fine-tuning
+## Gemma 2B IT LoRA Fine-Tuning
 
 ```bash
 node cli/src/cli.mjs train-gemma-2b-it-lora --dataset-id legal-ko
 ```
 
-이 명령은 이전 LoRA 예제 호환용이다. 신규 full fine-tuning 예제는 Gemma 4 E2B를 기본으로 사용한다.
+This command is kept for compatibility with the earlier LoRA example. New full fine-tuning examples use Gemma 4 E2B by default.
 
-기본 base model은 `google/gemma-2b-it`다.
+The default base model is `google/gemma-2b-it`.
 
 ```bash
 node cli/src/cli.mjs train-gemma-2b-it-lora \
@@ -82,16 +82,16 @@ node cli/src/cli.mjs train-gemma-2b-it-lora \
   --model-repo google/gemma-2b-it
 ```
 
-기본 LoRA 설정:
+Default LoRA settings:
 
 - `maxSeqLength=128`
 - `loraRank=8`
 - `loraAlpha=16`
 - `loraDropout=0.05`
 
-## Hugging Face 파일 다운로드
+## Download Hugging Face Files
 
-repo와 파일명을 지정:
+Specify a repo and filename:
 
 ```bash
 node cli/src/cli.mjs download-model \
@@ -99,16 +99,16 @@ node cli/src/cli.mjs download-model \
   --file adapter_model.safetensors
 ```
 
-URL을 직접 지정:
+Or specify a direct URL:
 
 ```bash
 node cli/src/cli.mjs download-model \
   --url https://huggingface.co/burstchester/legal-ko-qlora/resolve/main/adapter_model.safetensors
 ```
 
-## 모델 등록
+## Register A Model
 
-학습 결과를 Hugging Face에 업로드한 뒤 Burstchester 모델 레지스트리에 등록한다.
+After uploading training output to Hugging Face, register it in the Burstchester model registry.
 
 ```bash
 node cli/src/cli.mjs register-model \
@@ -119,7 +119,7 @@ node cli/src/cli.mjs register-model \
   --point-cost 100
 ```
 
-여러 dataset id를 파일로 전달:
+Pass multiple dataset IDs from a file:
 
 ```bash
 node cli/src/cli.mjs register-model \
@@ -128,9 +128,16 @@ node cli/src/cli.mjs register-model \
   --training-method lora
 ```
 
-## Colab 학습 스크립트
+## Colab Training Script
 
-Colab에서는 환경변수를 설정한 뒤 스크립트를 실행한다. FFT와 LoRA는 같은 실행 스크립트를 사용하지만 `TRAIN_COMMAND`, `BASE_MODEL`, `OUTPUT_MODEL_REPO`를 분리해서 지정한다.
+In Colab, configure environment variables and then run the shared script. FFT and LoRA use the same script, but `TRAIN_COMMAND`, `BASE_MODEL`, and `OUTPUT_MODEL_REPO` should be set separately.
+
+Ready-to-run notebook versions are available in `cli/examples`:
+
+- `cli/examples/gemma4-e2b-fft-training.ipynb`
+- `cli/examples/gemma-2b-it-lora-training.ipynb`
+- `cli/examples/upload-model-io-dataset.ipynb`
+- `cli/examples/colab-test-train-model.ipynb`
 
 ### Gemma 4 E2B FFT
 
@@ -148,7 +155,7 @@ export OUTPUT_MODEL_REPO="hf-user/gemma4-e2b-fft"
 bash cli/scripts/colab-train-and-register.sh
 ```
 
-이 설정은 Gemma 4 E2B 전체 파라미터를 학습한다. Colab T4/L4급 GPU에서는 메모리 부족으로 실패할 수 있으므로 A100/H100급 런타임을 권장한다.
+This configuration trains all Gemma 4 E2B parameters. A100/H100-class runtimes are recommended because Colab T4/L4-class GPUs may run out of memory.
 
 ### Gemma 2B IT LoRA
 
@@ -166,9 +173,9 @@ export OUTPUT_MODEL_REPO="hf-user/gemma-2b-it-lora"
 bash cli/scripts/colab-train-and-register.sh
 ```
 
-LoRA는 adapter만 학습하므로 FFT보다 필요한 GPU 메모리가 적다. Colab에서 빠르게 학습 파이프라인을 검증할 때는 LoRA 설정을 먼저 사용하는 편이 안전하다.
+LoRA trains only adapter weights, so it requires less GPU memory than FFT. For a quick Colab pipeline check, start with the LoRA configuration.
 
-학습만 하고 모델 등록을 건너뛰려면:
+To train without registering the model:
 
 ```bash
 export SKIP_REGISTER=1

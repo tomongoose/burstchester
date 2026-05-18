@@ -231,9 +231,6 @@ export async function getOrCreateCliProfileRecord(
   const displayName =
     (existing.displayName ?? input.displayName ?? "Anonymous").trim()
     || "Anonymous";
-  if (!isOwnProfile && isAnonymousDisplayName(input.uid, displayName)) {
-    throw new Error("Profile is not public.");
-  }
 
   return {
     uid: input.uid,
@@ -256,11 +253,4 @@ function readQueryString(
   const value = request.query?.[key];
   const first = Array.isArray(value) ? value[0] : value;
   return typeof first === "string" ? first.trim() : "";
-}
-
-function isAnonymousDisplayName(uid: string, displayName: string): boolean {
-  return !displayName
-    || displayName === "Anonymous"
-    || displayName === uid
-    || /^[A-Za-z0-9_-]{20,}$/.test(displayName);
 }

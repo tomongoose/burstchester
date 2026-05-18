@@ -51,7 +51,7 @@ export function SiteNav({ active = null }: SiteNavProps = {}): JSX.Element {
               Points
             </Link>
             <a
-              href="https://github.com/tomato-data/burstchester"
+              href="https://github.com/tomongoose/burstchester/tree/main/docs/usage"
               target="_blank"
               rel="noreferrer"
               className="border-b border-transparent pb-1 font-label text-[11px] uppercase tracking-[0.22em] text-on-surface-variant transition-colors hover:text-primary"

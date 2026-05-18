@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { Readable } from "node:stream";
 
-import { createGetDatasetHandler } from "@/handlers/get-dataset";
+import { createGetDatasetHandler, executeGetDataset } from "@/handlers/get-dataset";
 
 interface ResponseStub {
   statusCode: number;
@@ -81,8 +82,8 @@ describe("getDatasetHandler", () => {
     await handler(
       { method: "GET", query: { datasetId: "dataset-1" }, body: {} },
       response as never,
-      async () =>
-        ({
+      async () => ({
+        dataset: {
           id: "dataset-1",
           ownerUid: "uid-alice",
           ownerName: "Alice",
@@ -93,7 +94,16 @@ describe("getDatasetHandler", () => {
           likeCount: 5,
           downloadCount: 9,
           status: "active",
-        }) as never,
+        },
+        previewSamples: [
+          {
+            messages: [
+              { role: "user", content: "Question" },
+              { role: "assistant", content: "Answer" },
+            ],
+          },
+        ],
+      }) as never,
     );
 
     expect(response.statusCode).toBe(200);
@@ -112,6 +122,14 @@ describe("getDatasetHandler", () => {
         likeCount: 5,
         downloadCount: 9,
         status: "active",
+        previewSamples: [
+          {
+            messages: [
+              { role: "user", content: "Question" },
+              { role: "assistant", content: "Answer" },
+            ],
+          },
+        ],
       },
     });
   });
@@ -135,8 +153,8 @@ describe("getDatasetHandler", () => {
     await handler(
       { method: "GET", query: { datasetId: "dataset-1" }, body: {} },
       response as never,
-      async () =>
-        ({
+      async () => ({
+        dataset: {
           id: "dataset-1",
           ownerUid: "uid-alice",
           ownerName: "uid-alice",
@@ -147,7 +165,9 @@ describe("getDatasetHandler", () => {
           likeCount: 5,
           downloadCount: 9,
           status: "active",
-        }) as never,
+        },
+        previewSamples: [],
+      }) as never,
     );
 
     expect(response.statusCode).toBe(200);
@@ -158,6 +178,80 @@ describe("getDatasetHandler", () => {
         ownerName: "Alice Profile",
         ownerPhotoURL: "https://example.com/alice.png",
       },
+    });
+  });
+
+  it("reads limited preview samples from the normalized dataset object", async () => {
+    const jsonl = [
+      JSON.stringify({
+        messages: [
+          { role: "user", content: "q1" },
+          { role: "assistant", content: "a1" },
+        ],
+      }),
+      JSON.stringify({
+        messages: [
+          { role: "user", content: "q2" },
+          { role: "assistant", content: "a2" },
+        ],
+      }),
+      JSON.stringify({
+        messages: [
+          { role: "user", content: "q3" },
+          { role: "assistant", content: "a3" },
+        ],
+      }),
+      JSON.stringify({
+        messages: [
+          { role: "user", content: "q4" },
+          { role: "assistant", content: "a4" },
+        ],
+      }),
+    ].join("\n");
+
+    const detail = await executeGetDataset(
+      {
+        db: {
+          doc: () => ({
+            get: async () => ({
+              exists: true,
+              id: "dataset-1",
+              data: () => ({
+                id: "dataset-1",
+                ownerUid: "uid-alice",
+                ownerName: "Alice",
+                title: "Legal Korean Set",
+                description: "Korean legal dataset",
+                tags: ["domain/legal"],
+                rowCount: 4,
+                likeCount: 5,
+                downloadCount: 9,
+                status: "active",
+                storagePath: "gs://datasets-bucket/uploads/dataset-1.jsonl",
+                normalizedStoragePath: "normalized/dataset-1/dataset.jsonl",
+              }),
+            }),
+          }),
+        },
+        storage: {
+          bucket: (bucketName: string) => ({
+            file: (path: string) => ({
+              createReadStream: () => {
+                expect(bucketName).toBe("datasets-bucket");
+                expect(path).toBe("normalized/dataset-1/dataset.jsonl");
+                return Readable.from([jsonl]);
+              },
+            }),
+          }),
+        },
+      } as never,
+      "dataset-1",
+    );
+
+    expect(detail?.previewSamples).toHaveLength(3);
+    expect(detail?.previewSamples[0].messages[0]).toEqual({
+      role: "user",
+      content: "q1",
     });
   });
 });

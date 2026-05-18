@@ -75,6 +75,9 @@ async function main(argv) {
     case "dataset-list":
       await handleDatasetList(flags, positionals);
       return;
+    case "upload-dataset":
+      await handleUploadTestDataset(flags);
+      return;
     case "upload-test-dataset":
       await handleUploadTestDataset(flags);
       return;
@@ -790,6 +793,7 @@ function printUsage() {
       "  download-model --url <hf-url> [--access-token <token>] [--model-name <name>] [--out-dir <dir>]",
       "  download-model --repo <org/model> --file <filename> [--access-token <token>] [--revision <rev>] [--out-dir <dir>]",
       "  proxy-record --target-url <url> [--host <host>] [--port <port>] [--log-file <path>]",
+      "  upload-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",

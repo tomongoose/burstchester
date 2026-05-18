@@ -253,16 +253,25 @@ describe("upsertCliProfileHandler", () => {
     });
   });
 
-  it("returns forbidden when a target profile is anonymous or private", async () => {
+  it("returns an anonymous target profile without granting edit access", async () => {
     const response = createResponse();
     const handler = createUpsertCliProfileHandler({
       verifyIdToken: async () => ({ uid: "viewer" }),
       upsertProfile: async () => {
         throw new Error("should not upsert");
       },
-      getProfile: async () => {
-        throw new Error("Profile is not public.");
-      },
+      getProfile: async ({ uid, requesterUid }) => ({
+        uid,
+        email: requesterUid === uid ? "owner@example.com" : "",
+        displayName: "Anonymous",
+        photoURL: "",
+        description: "",
+        workplace: "",
+        uploadCount: 0,
+        downloadCount: 0,
+        points: 10_000,
+        reputation: 0,
+      }),
     });
 
     await handler(
@@ -275,10 +284,21 @@ describe("upsertCliProfileHandler", () => {
       response as never,
     );
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(200);
     expect(response.body).toEqual({
-      ok: false,
-      error: "Profile is not public.",
+      ok: true,
+      profile: {
+        uid: "anonymous-owner",
+        email: "",
+        displayName: "Anonymous",
+        photoURL: "",
+        description: "",
+        workplace: "",
+        uploadCount: 0,
+        downloadCount: 0,
+        points: 10_000,
+        reputation: 0,
+      },
     });
   });
 

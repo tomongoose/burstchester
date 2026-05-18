@@ -30,6 +30,7 @@ Optional env:
   LORA_DROPOUT                    Forwarded to CLI --lora-dropout.
   OUTPUT_MODEL_REPO               Hugging Face repo to upload the trained output to.
   OUTPUT_MODEL_URL                Existing Hugging Face downloadable URL to register.
+  OUTPUT_MODEL_FILE               Optional file inside OUTPUT_MODEL_REPO to register.
   MODEL_POINT_COST                Point cost for the registered output model.
   OLLAMA_PULL_URL                 Optional Ollama pull URL stored with the model record.
   SKIP_REGISTER=1                 Train only, skip backend model registration.
@@ -147,10 +148,20 @@ main() {
   PYTHON_BIN="${PYTHON_BIN:-python3}"
   TRAIN_COMMAND="${TRAIN_COMMAND:-train-gemma-2b-it-lora}"
   WORKSPACE="${WORKSPACE:-/content/burstchester-training}"
+  local registered_training_method="${TRAINING_METHOD:-qlora}"
+  case "${TRAIN_COMMAND}" in
+    train-gemma4-e2b-full)
+      registered_training_method="full"
+      ;;
+    train-gemma-2b-it-lora)
+      registered_training_method="lora"
+      ;;
+  esac
 
   if [[ -n "${BURSTCHESTER_FIREBASE_ID_TOKEN:-}" ]]; then
     write_session
   fi
+  mkdir -p "$(dirname "${WORKSPACE}")"
   normalize_dataset_list > "${WORKSPACE}.dataset-ids.txt"
   node src/cli.mjs dataset-list import --file "${WORKSPACE}.dataset-ids.txt" >/dev/null
 
@@ -192,20 +203,30 @@ NODE
   if [[ -z "${model_url}" && "${SKIP_HF_UPLOAD:-0}" != "1" ]]; then
     require_env OUTPUT_MODEL_REPO
     upload_output_model "${output_dir}" "${OUTPUT_MODEL_REPO}" | tee "${WORKSPACE}.hf-upload.txt"
-    model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/adapter_model.safetensors"
+    if [[ -n "${OUTPUT_MODEL_FILE:-}" ]]; then
+      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/${OUTPUT_MODEL_FILE}"
+    elif [[ "${registered_training_method}" == "lora" || "${registered_training_method}" == "qlora" ]]; then
+      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}/resolve/main/adapter_model.safetensors"
+    else
+      model_url="https://huggingface.co/${OUTPUT_MODEL_REPO}"
+    fi
   fi
   if [[ -z "${model_url}" ]]; then
     echo "Set OUTPUT_MODEL_URL or OUTPUT_MODEL_REPO, or set SKIP_REGISTER=1." >&2
     exit 2
   fi
 
-  node src/cli.mjs register-model \
-    --huggingface-url "${model_url}" \
-    --base-model "${BASE_MODEL}" \
-    --dataset-file "${WORKSPACE}.dataset-ids.txt" \
-    ${MODEL_POINT_COST:+--point-cost "${MODEL_POINT_COST}"} \
-    ${OLLAMA_PULL_URL:+--ollama-pull-url "${OLLAMA_PULL_URL}"} \
-    | tee "${WORKSPACE}.register-result.json"
+  local register_args=(
+    register-model
+    --huggingface-url "${model_url}"
+    --base-model "${BASE_MODEL}"
+    --dataset-file "${WORKSPACE}.dataset-ids.txt"
+    --training-method "${registered_training_method}"
+  )
+  [[ -n "${MODEL_POINT_COST:-}" ]] && register_args+=(--point-cost "${MODEL_POINT_COST}")
+  [[ -n "${OLLAMA_PULL_URL:-}" ]] && register_args+=(--ollama-pull-url "${OLLAMA_PULL_URL}")
+
+  node src/cli.mjs "${register_args[@]}" | tee "${WORKSPACE}.register-result.json"
 }
 
 main "$@"

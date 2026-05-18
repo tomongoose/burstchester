@@ -1,51 +1,51 @@
-# CLI 데이터셋 사용법
+# CLI Dataset Usage
 
-## 데이터셋 목록 관리
+## Manage The Dataset List
 
-학습에 사용할 dataset id 목록을 로컬에 저장할 수 있다.
+You can store a local list of dataset IDs for training.
 
 ```bash
 node cli/src/cli.mjs dataset-list add --dataset-id legal-ko
 node cli/src/cli.mjs dataset-list add --dataset-id finance-ko
 ```
 
-조회:
+Show the current list:
 
 ```bash
 node cli/src/cli.mjs dataset-list show
 ```
 
-파일에서 import:
+Import from a file:
 
 ```bash
 node cli/src/cli.mjs dataset-list import --file ./dataset-ids.txt
 ```
 
-파일로 export:
+Export to a file:
 
 ```bash
 node cli/src/cli.mjs dataset-list export --file ./dataset-ids.txt
 ```
 
-삭제:
+Remove one dataset ID:
 
 ```bash
 node cli/src/cli.mjs dataset-list remove --dataset-id finance-ko
 ```
 
-초기화:
+Clear the list:
 
 ```bash
 node cli/src/cli.mjs dataset-list clear
 ```
 
-## 데이터셋 다운로드
+## Download A Dataset
 
 ```bash
 node cli/src/cli.mjs download-dataset --dataset-id legal-ko
 ```
 
-옵션:
+With explicit options:
 
 ```bash
 node cli/src/cli.mjs download-dataset \
@@ -54,7 +54,7 @@ node cli/src/cli.mjs download-dataset \
   --extract true
 ```
 
-외부 환경에서 명시 토큰을 사용할 때:
+When using an explicit token in an external environment:
 
 ```bash
 node cli/src/cli.mjs download-dataset \
@@ -62,19 +62,21 @@ node cli/src/cli.mjs download-dataset \
   --access-token "$BURSTCHESTER_ACCESS_TOKEN"
 ```
 
-## 디버그 데이터셋 업로드
+## Upload A Dataset
 
-로컬 JSONL 파일을 백엔드 디버그 업로드 함수로 보내 실제 데이터셋 레코드를 만들 수 있다.
+You can send a local JSONL file to the backend upload function and create a dataset record.
 
 ```bash
-node cli/src/cli.mjs upload-test-dataset \
+node cli/src/cli.mjs upload-dataset \
   --file ./fixtures/legal-ko.jsonl \
   --dataset-id legal-ko \
   --title "Legal Debug Dataset" \
   --source-model human
 ```
 
-주요 옵션:
+The legacy `upload-test-dataset` command is still available as an alias-compatible command for older scripts.
+
+Common options:
 
 - `--dataset-id`
 - `--title`
@@ -88,11 +90,11 @@ node cli/src/cli.mjs upload-test-dataset \
 - `--output-model-id`
 - `--point-cost`
 
-## 프록시 로그 업로드
+## Upload Proxy Logs
 
-OpenAI/Ollama 호환 API 호출을 프록시로 기록한 뒤 데이터셋으로 변환할 수 있다.
+You can record OpenAI-compatible or Ollama-compatible API calls through a proxy and convert the captured input/output pairs into a dataset.
 
-프록시 실행:
+Start the proxy:
 
 ```bash
 node cli/src/cli.mjs proxy-record \
@@ -101,7 +103,7 @@ node cli/src/cli.mjs proxy-record \
   --log-file ./proxy-log.jsonl
 ```
 
-로그 업로드:
+Upload the captured log:
 
 ```bash
 node cli/src/cli.mjs upload-proxy-log \
@@ -110,9 +112,9 @@ node cli/src/cli.mjs upload-proxy-log \
   --title "Proxy Captured Dataset"
 ```
 
-## 포인트 가격 변경
+## Update Point Cost
 
-소유한 데이터셋 또는 모델의 다운로드 가격을 수정한다.
+Update the download price for a dataset or model that you own.
 
 ```bash
 node cli/src/cli.mjs update-point-cost \
