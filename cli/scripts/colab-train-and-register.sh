@@ -261,11 +261,18 @@ NODE
     echo "Set OUTPUT_MODEL_URL or OUTPUT_MODEL_REPO, or set SKIP_REGISTER=1." >&2
     exit 2
   fi
+  local model_title="${MODEL_TITLE:-}"
+  if [[ -z "${model_title}" && -n "${OUTPUT_MODEL_REPO:-}" ]]; then
+    model_title="${OUTPUT_MODEL_REPO##*/}"
+  fi
+  if [[ -z "${model_title}" ]]; then
+    model_title="Untitled"
+  fi
 
   local register_args=(
     register-model
     --huggingface-url "${model_url}"
-    --title "${MODEL_TITLE:-}"
+    --title "${model_title}"
     --base-model "${BASE_MODEL}"
     --dataset-file "${WORKSPACE}.dataset-ids.txt"
     --training-method "${registered_training_method}"
