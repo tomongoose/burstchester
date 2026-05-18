@@ -33,10 +33,12 @@ must have access to that model.
 Training notebooks use `DATASET_IDS` in the first settings cell.
 
 ```python
-DATASET_IDS = "dataset-id-1,dataset-id-2"
+DATASET_IDS = "legal-ko,legal-briefing-v1,customer-support-ko-en-v1"
 ```
 
-Replace the placeholder with real Burstchester dataset IDs. Multiple IDs can be separated by commas, spaces, or new lines.
+The default value uses currently active sample datasets. You can replace it with
+other Burstchester dataset IDs. Multiple IDs can be separated by commas, spaces,
+or new lines.
 
 ## Output Model Repos
 
