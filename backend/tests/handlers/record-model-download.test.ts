@@ -153,4 +153,50 @@ describe("recordModelDownload", () => {
       remainingPoints: 900,
     });
   });
+
+  it("records Hugging Face repo names without treating slashes as Firestore paths", async () => {
+    const requestedDocPaths: string[] = [];
+    const purchaseWrites: unknown[] = [];
+    const deps = {
+      database: {
+        ref: () => ({
+          get: async () => ({ exists: () => false }),
+          set: async (value: unknown) => {
+            purchaseWrites.push(value);
+          },
+        }),
+      },
+      db: {
+        doc: (path: string) => {
+          requestedDocPaths.push(path);
+          return { path };
+        },
+        runTransaction: async (callback: (transaction: unknown) => Promise<void>) => {
+          await callback({
+            get: async () => ({ data: () => ({ points: 1_000 }) }),
+            set: () => undefined,
+          });
+        },
+      },
+      fieldValue: {
+        serverTimestamp: () => "server-time",
+        increment: (delta: number) => ({ increment: delta }),
+      },
+    };
+
+    const result = await recordModelDownload(deps as never, {
+      uid: "buyer",
+      modelName: "google/gemma-2b-it",
+      sourceUrl: "https://huggingface.co/google/gemma-2b-it",
+    });
+
+    expect(result).toEqual({ pointCost: 100, remainingPoints: 900 });
+    expect(requestedDocPaths).toEqual(["users/buyer"]);
+    expect(purchaseWrites[0]).toMatchObject({
+      type: "model",
+      modelName: "google/gemma-2b-it",
+      ownerUid: "",
+      pointCost: 100,
+    });
+  });
 });

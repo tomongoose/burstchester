@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { parseDatasetIdFile } from "./dataset-list.mjs";
+import { normalizeDatasetIds, parseDatasetIdFile } from "./dataset-list.mjs";
 import { normalizeDatasetId } from "./session.mjs";
 
 export async function resolveDatasetIdsInput({
@@ -9,11 +9,13 @@ export async function resolveDatasetIdsInput({
   readFileImpl = readFile,
   readStdinImpl = readAllStdin,
 }) {
-  const explicit = normalizeDatasetId(
-    typeof flags["dataset-id"] === "string" ? flags["dataset-id"] : "",
-  );
-  if (explicit) {
-    return [explicit];
+  const datasetIdFlags = [
+    ...flagValues(flags["dataset-id"]),
+    ...flagValues(flags["dataset-ids"]),
+  ];
+  const explicit = normalizeDatasetIds(datasetIdFlags);
+  if (explicit.length > 0) {
+    return explicit;
   }
 
   if (flags["paste-dataset-list"] === true) {
@@ -41,6 +43,13 @@ export async function resolveDatasetIdsInput({
   throw new Error(
     "No dataset ids available. Pass --dataset-id, --dataset-file, or --paste-dataset-list.",
   );
+}
+
+function flagValues(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return typeof value === "string" ? [value] : [];
 }
 
 async function readAllStdin() {

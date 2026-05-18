@@ -29,3 +29,25 @@ test("resolveDatasetIdsInput prefers an explicit dataset id over pasted input", 
 
   assert.deepEqual(ids, ["dataset-explicit"]);
 });
+
+test("resolveDatasetIdsInput accepts comma separated dataset ids", async () => {
+  const ids = await resolveDatasetIdsInput({
+    flags: {
+      "dataset-ids": "dataset-1,dataset-2",
+    },
+    session: {},
+  });
+
+  assert.deepEqual(ids, ["dataset-1", "dataset-2"]);
+});
+
+test("resolveDatasetIdsInput accepts repeated dataset id flags", async () => {
+  const ids = await resolveDatasetIdsInput({
+    flags: {
+      "dataset-id": ["dataset-1", "dataset-2"],
+    },
+    session: {},
+  });
+
+  assert.deepEqual(ids, ["dataset-1", "dataset-2"]);
+});

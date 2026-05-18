@@ -587,17 +587,30 @@ async function handleRegisterModel(flags) {
     baseModel: typeof flags["base-model"] === "string" ? flags["base-model"] : "unknown",
     trainingDatasets: datasetIds,
     trainingMethod: typeof flags["training-method"] === "string" ? flags["training-method"] : "qlora",
-    pointCost: typeof flags["point-cost"] === "string" ? flags["point-cost"] : undefined,
+    pointCost: resolvePointCostFlag(flags),
     ollamaPullUrl: typeof flags["ollama-pull-url"] === "string" ? flags["ollama-pull-url"] : "",
   });
 
   process.stdout.write(`${JSON.stringify({ ok: true, model }, null, 2)}\n`);
 }
 
+function resolvePointCostFlag(flags) {
+  if (typeof flags["point-cost"] === "string") {
+    return flags["point-cost"];
+  }
+  if (typeof flags["model-point-cost"] === "string") {
+    return flags["model-point-cost"];
+  }
+  return undefined;
+}
+
 function hasDatasetSelectionFlags(flags) {
   return Boolean(
     typeof flags["dataset-id"] === "string"
       || typeof flags["dataset-file"] === "string"
+      || typeof flags["dataset-ids"] === "string"
+      || Array.isArray(flags["dataset-id"])
+      || Array.isArray(flags["dataset-ids"])
       || flags["paste-dataset-list"] === true,
   );
 }
@@ -796,11 +809,11 @@ function printUsage() {
       "  upload-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-test-dataset --file <path> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
       "  upload-proxy-log --file <path> --source-model <model> [--title <title>] [--point-cost <points>] [--access-token <token>] [--upload-url <url>]",
-      "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
+      "  register-model --huggingface-url <hf-url> [--base-model <name>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--training-method <method>] [--point-cost <points>] [--ollama-pull-url <url>] [--access-token <token>]",
       "  update-point-cost --asset-type <dataset|model> --asset-id <id> --point-cost <points>",
-      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",
-      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
-      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
+      "  train [--backend-url <url>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] --model-repo <org/model> [--access-token <token>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma4-e2b-full [--backend-url <url>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
+      "  train-gemma-2b-it-lora [--backend-url <url>] [--dataset-id <id> | --dataset-ids <id,id> | --dataset-file <path> | --paste-dataset-list] [--model-repo <org/model>] [--access-token <token>] [--workspace <dir>] [--preflight-only]",
       "",
     ].join("\n"),
   );

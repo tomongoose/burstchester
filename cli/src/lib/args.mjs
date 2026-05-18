@@ -17,7 +17,13 @@ export function parseArgs(argv) {
       continue;
     }
 
-    flags[key] = next;
+    if (Object.prototype.hasOwnProperty.call(flags, key)) {
+      flags[key] = Array.isArray(flags[key])
+        ? [...flags[key], next]
+        : [flags[key], next];
+    } else {
+      flags[key] = next;
+    }
     index += 1;
   }
 

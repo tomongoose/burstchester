@@ -89,10 +89,7 @@ export async function recordModelDownload(
     };
   }
 
-  const modelSnapshot = await deps.db.doc(`models/${input.modelName}`).get();
-  const model = modelSnapshot.exists
-    ? (modelSnapshot.data() as { pointCost?: unknown; ownerUid?: unknown })
-    : null;
+  const model = await readRegisteredModelForDownload(deps, input.modelName);
   const pointCost = normalizePointCost(
     model?.pointCost,
     DEFAULT_MODEL_DOWNLOAD_POINT_COST,
@@ -147,4 +144,18 @@ export async function recordModelDownload(
     purchasedAt: Date.now(),
   });
   return chargeResult;
+}
+
+async function readRegisteredModelForDownload(
+  deps: Pick<HandlerDeps, "db">,
+  modelName: string,
+): Promise<{ pointCost?: unknown; ownerUid?: unknown } | null> {
+  if (modelName.includes("/")) {
+    return null;
+  }
+
+  const modelSnapshot = await deps.db.doc(`models/${modelName}`).get();
+  return modelSnapshot.exists
+    ? (modelSnapshot.data() as { pointCost?: unknown; ownerUid?: unknown })
+    : null;
 }
